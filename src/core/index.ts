@@ -4,6 +4,7 @@ export { PACKAGE_NAME };
 
 export * from "./backup.js";
 export * from "./config.js";
+export * from "./migrations.js";
 export * from "./paths.js";
 export * from "./secrets.js";
 export * from "./sqlite.js";
