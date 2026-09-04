@@ -3,9 +3,9 @@
 Package to help OpenCode self-improve over time.
 
 ## Stack
-- Language/runtime:
-- Framework:
-- Package manager:
+- Language/runtime: TypeScript on Bun
+- Framework: None
+- Package manager: Bun
 
 ## Commands
 - Install:
@@ -19,11 +19,11 @@ Cross-project coding principles live in the user's global instructions. Project 
 
 This section is only for what's specific to *this* repo:
 - Code style:
-- Testing approach:
+- Testing approach: Behavior-focused Bun tests, SQLite migration/concurrency tests, OpenCode adapter contract tests, and end-to-end acceptance scenarios.
 - Commit message format:
 
 ## Architecture
-(Placeholder — fill in once the system has real shape. High-level modules/services and how they talk to each other. Update this when the shape changes, not on every commit.)
+A single publishable package exposes a tool-neutral core, CLI, and OpenCode adapter. The core owns a local SQLite store, lesson lifecycle, federated indexing/retrieval, task evidence, and model routing; the adapter translates OpenCode hooks and tools into core operations. See [`docs/designs/2026-09-03-coding-memory-model-router.md`](docs/designs/2026-09-03-coding-memory-model-router.md).
 
 ## Context files
 Keep these current — they're what gives any session, model, or tool continuity without re-deriving history from scratch.
