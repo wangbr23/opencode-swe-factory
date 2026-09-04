@@ -3,6 +3,7 @@ import { PACKAGE_NAME } from "./constants.js";
 export { PACKAGE_NAME };
 
 export * from "./config.js";
+export * from "./diagnostics.js";
 export * from "./paths.js";
 export * from "./secrets.js";
 export * from "./sqlite.js";
