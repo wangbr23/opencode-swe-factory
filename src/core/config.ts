@@ -1,3 +1,9 @@
+import { randomUUID } from "node:crypto";
+import { lstatSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+
+import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile, resolveManagedPaths } from "./paths.js";
+
 export const CONFIG_SCHEMA_VERSION = 1 as const;
 
 export type RoutingMode = "recommendation-only" | "automatic" | "disabled";
@@ -63,6 +69,34 @@ export type ConfigV1 = Readonly<{
     unusedLessonDays: number | null;
   }>;
 }>;
+
+export type PackageConfigPathInput = Readonly<{
+  configFilePath?: string;
+}>;
+
+export class PackageConfigLoadError extends Error {
+  readonly configFilePath: string;
+  readonly phase: "read" | "parse" | "validate";
+
+  constructor(configFilePath: string, phase: "read" | "parse" | "validate", cause: unknown) {
+    super(`Could not load package config at ${configFilePath} during ${phase}.`, { cause });
+    this.name = "PackageConfigLoadError";
+    this.configFilePath = configFilePath;
+    this.phase = phase;
+  }
+}
+
+export class PackageConfigWriteError extends Error {
+  readonly configFilePath: string;
+  readonly cleanupError: unknown | undefined;
+
+  constructor(configFilePath: string, cause: unknown, cleanupError?: unknown) {
+    super(`Could not save package config at ${configFilePath}.`, { cause });
+    this.name = "PackageConfigWriteError";
+    this.configFilePath = configFilePath;
+    this.cleanupError = cleanupError;
+  }
+}
 
 const DEFAULT_EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
 
@@ -271,6 +305,79 @@ function readAllowlist(value: unknown, label: string): ReadonlyArray<ModelAllowl
     throw new Error(`${label} must be an array.`);
   }
   return value.map((entry, index) => readAllowlistEntry(entry, `${label}[${index}]`));
+}
+
+function resolvePackageConfigFilePath(input: PackageConfigPathInput): string {
+  return readString(input.configFilePath ?? resolveManagedPaths().configFilePath, "configFilePath");
+}
+
+function ensureReadablePackageConfigFile(configFilePath: string): void {
+  const existing = lstatSync(configFilePath, { throwIfNoEntry: false });
+  if (existing === undefined) {
+    return;
+  }
+  ensureOwnerOnlyFile(configFilePath);
+}
+
+function readPackageConfigFile(configFilePath: string): ConfigV1 {
+  let rawContent: string;
+
+  try {
+    ensureReadablePackageConfigFile(configFilePath);
+    rawContent = readFileSync(configFilePath, "utf8");
+  } catch (error) {
+    if (error instanceof Error && (error as Error & { code?: string }).code === "ENOENT") {
+      return createDefaultConfig();
+    }
+    throw new PackageConfigLoadError(configFilePath, "read", error);
+  }
+
+  let content: unknown;
+  try {
+    content = JSON.parse(rawContent) as unknown;
+  } catch (error) {
+    throw new PackageConfigLoadError(configFilePath, "parse", error);
+  }
+
+  try {
+    return resolveConfig(content);
+  } catch (error) {
+    throw new PackageConfigLoadError(configFilePath, "validate", error);
+  }
+}
+
+function serializeConfig(config: ConfigV1): string {
+  return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+function writeConfigFileAtomically(configFilePath: string, contents: string): void {
+  const directoryPath = dirname(configFilePath);
+  const temporaryFilePath = join(directoryPath, `${basename(configFilePath)}.${process.pid}.${randomUUID()}.tmp`);
+
+  try {
+    ensureOwnerOnlyDirectory(directoryPath);
+    writeFileSync(temporaryFilePath, contents, { mode: 0o600 });
+    ensureOwnerOnlyFile(temporaryFilePath);
+    renameSync(temporaryFilePath, configFilePath);
+  } catch (error) {
+    let cleanupError: unknown | undefined;
+    try {
+      rmSync(temporaryFilePath, { force: true });
+    } catch (cleanup) {
+      cleanupError = cleanup;
+    }
+    throw new PackageConfigWriteError(configFilePath, error, cleanupError);
+  }
+}
+
+export function loadPackageConfig(input: PackageConfigPathInput = {}): ConfigV1 {
+  return readPackageConfigFile(resolvePackageConfigFilePath(input));
+}
+
+export function savePackageConfig(input: unknown, configInput: PackageConfigPathInput = {}): ConfigV1 {
+  const config = resolveConfig(input);
+  writeConfigFileAtomically(resolvePackageConfigFilePath(configInput), serializeConfig(config));
+  return config;
 }
 
 /**

@@ -1,11 +1,34 @@
 import { expect, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import {
   type ConfigV1,
   CONFIG_SCHEMA_VERSION,
   createDefaultConfig,
+  loadPackageConfig,
+  PackageConfigLoadError,
+  PackageConfigWriteError,
+  savePackageConfig,
   resolveConfig,
 } from "../src/core/config.js";
+
+function withTempDirectory(run: (root: string) => void): void {
+  const root = mkdtempSync(join(tmpdir(), "opencode-swe-factory-config-"));
+  try {
+    run(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function fileMode(path: string): number | null {
+  if (process.platform === "win32") {
+    return null;
+  }
+  return statSync(path).mode & 0o777;
+}
 
 test("createDefaultConfig returns conservative, isolated defaults", () => {
   const first = createDefaultConfig();
@@ -188,4 +211,120 @@ test("resolveConfig rejects malformed, unknown, and unsupported input", () => {
   expect(() => resolveConfig({ backups: { schedule: { intervalDays: 0 } } })).toThrow(/backups\.schedule\.intervalDays/);
   expect(() => resolveConfig({ maintenance: { staleLessonDays: -1 } })).toThrow(/maintenance\.staleLessonDays/);
   expect(() => resolveConfig({ routing: { allowlist: [{ provider: "x" }] } })).toThrow(/routing\.allowlist\[0\]\.capabilities/);
+});
+
+test("loadPackageConfig defaults missing files without creating them", () => {
+  withTempDirectory((root) => {
+    const configFilePath = join(root, "config.json");
+
+    expect(loadPackageConfig({ configFilePath })).toEqual(createDefaultConfig());
+    expect(existsSync(configFilePath)).toBe(false);
+  });
+});
+
+test("loadPackageConfig tightens an existing POSIX config file before reading it", () => {
+  withTempDirectory((root) => {
+    const configFilePath = join(root, "config.json");
+    writeFileSync(configFilePath, JSON.stringify(createDefaultConfig(), null, 2), { mode: 0o644 });
+
+    const loaded = loadPackageConfig({ configFilePath });
+
+    expect(loaded).toEqual(createDefaultConfig());
+    expect(fileMode(configFilePath)).toBe(process.platform === "win32" ? null : 0o600);
+  });
+});
+
+test("savePackageConfig persists a deterministic JSON config and round-trips it", () => {
+  withTempDirectory((root) => {
+    const configFilePath = join(root, "config.json");
+    const input = {
+      routing: {
+        mode: "automatic",
+      },
+      backups: {
+        schedule: {
+          intervalDays: 7,
+        },
+      },
+    };
+
+    const saved = savePackageConfig(input, { configFilePath });
+
+    expect(loadPackageConfig({ configFilePath })).toEqual(saved);
+    expect(readFileSync(configFilePath, "utf8")).toBe(`${JSON.stringify(saved, null, 2)}\n`);
+    expect(fileMode(configFilePath)).toBe(process.platform === "win32" ? null : 0o600);
+  });
+});
+
+test("loadPackageConfig rejects malformed and unknown config with contextual errors", () => {
+  withTempDirectory((root) => {
+    const configFilePath = join(root, "config.json");
+
+    writeFileSync(configFilePath, "{");
+    try {
+      loadPackageConfig({ configFilePath });
+      throw new Error("expected loadPackageConfig to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PackageConfigLoadError);
+      expect((error as PackageConfigLoadError).phase).toBe("parse");
+    }
+
+    writeFileSync(configFilePath, JSON.stringify({ unexpected: true }, null, 2));
+    try {
+      loadPackageConfig({ configFilePath });
+      throw new Error("expected loadPackageConfig to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PackageConfigLoadError);
+      expect((error as PackageConfigLoadError).configFilePath).toBe(configFilePath);
+      expect((error as PackageConfigLoadError).phase).toBe("validate");
+      expect(readFileSync(configFilePath, "utf8")).toContain("unexpected");
+    }
+  });
+});
+
+test("loadPackageConfig rejects config symlinks where symlinks are supported", () => {
+  if (process.platform === "win32") {
+    return;
+  }
+
+  withTempDirectory((root) => {
+    const targetPath = join(root, "target.json");
+    const configFilePath = join(root, "config.json");
+
+    writeFileSync(targetPath, JSON.stringify(createDefaultConfig(), null, 2));
+    symlinkSync(targetPath, configFilePath);
+
+    try {
+      loadPackageConfig({ configFilePath });
+      throw new Error("expected loadPackageConfig to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PackageConfigLoadError);
+      expect((error as PackageConfigLoadError).phase).toBe("read");
+      expect((error as PackageConfigLoadError).configFilePath).toBe(configFilePath);
+    }
+  });
+});
+
+test("savePackageConfig atomically replaces existing config and cleans temporary files on failure", () => {
+  withTempDirectory((root) => {
+    const configFilePath = join(root, "config.json");
+    writeFileSync(configFilePath, JSON.stringify(createDefaultConfig(), null, 2));
+
+    const saved = savePackageConfig({ routing: { mode: "disabled" } }, { configFilePath });
+    expect(loadPackageConfig({ configFilePath })).toEqual(saved);
+    expect(readFileSync(configFilePath, "utf8")).toBe(`${JSON.stringify(saved, null, 2)}\n`);
+
+    const blockedConfigPath = join(root, "blocked-config.json");
+    mkdirSync(blockedConfigPath);
+
+    try {
+      savePackageConfig(createDefaultConfig(), { configFilePath: blockedConfigPath });
+      throw new Error("expected savePackageConfig to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PackageConfigWriteError);
+      expect((error as PackageConfigWriteError).configFilePath).toBe(blockedConfigPath);
+      expect(readdirSync(root).sort()).toEqual(["blocked-config.json", "config.json"]);
+      expect(statSync(blockedConfigPath).isDirectory()).toBe(true);
+    }
+  });
 });
