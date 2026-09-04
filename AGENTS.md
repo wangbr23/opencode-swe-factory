@@ -8,11 +8,11 @@ Package to help OpenCode self-improve over time.
 - Package manager: Bun
 
 ## Commands
-- Install:
-- Dev/run:
-- Test:
-- Lint/typecheck:
-- Build:
+- Install: `bun install`
+- Dev/run: `bun run dev`
+- Test: `bun test`
+- Lint/typecheck: `bun run typecheck`
+- Build: `bun run build`
 
 ## Conventions
 Cross-project coding principles live in the user's global instructions. Project coding conventions live in `CLEANCODE.md`; keep detailed code-quality rules there so this file stays focused on project context.
