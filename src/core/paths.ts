@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { mkdirSync, chmodSync, lstatSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, posix as posixPath, win32 as win32Path } from "node:path";
@@ -5,6 +6,8 @@ import { dirname, posix as posixPath, win32 as win32Path } from "node:path";
 import { PACKAGE_NAME } from "./constants.js";
 
 type EnvironmentMap = Readonly<Record<string, string | undefined>>;
+
+export type WindowsAclCommand = (command: string, arguments_: readonly string[]) => void;
 
 export type ManagedPaths = Readonly<{
   configDirectory: string;
@@ -125,12 +128,47 @@ function supportsPosixModes(platform: NodeJS.Platform): boolean {
   return platform !== "win32";
 }
 
+const WINDOWS_ACL_SCRIPT = [
+  "param([string]$path, [string]$kind)",
+  "$isDirectory = $kind -eq 'directory'",
+  "$owner = [System.Security.Principal.WindowsIdentity]::GetCurrent().User",
+  "$acl = if ($isDirectory) { New-Object System.Security.AccessControl.DirectorySecurity } else { New-Object System.Security.AccessControl.FileSecurity }",
+  "$inheritance = if ($isDirectory) { [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit } else { [System.Security.AccessControl.InheritanceFlags]::None }",
+  "$acl.SetAccessRuleProtection($true, $false)",
+  "$acl.SetOwner($owner)",
+  "$acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($owner, [System.Security.AccessControl.FileSystemRights]::FullControl, $inheritance, [System.Security.AccessControl.PropagationFlags]::None, [System.Security.AccessControl.AccessControlType]::Allow)))",
+  "if ($isDirectory) { [System.IO.Directory]::SetAccessControl($path, $acl) } else { [System.IO.File]::SetAccessControl($path, $acl) }",
+].join("; ");
+
+function runWindowsAclCommand(command: string, arguments_: readonly string[]): void {
+  const result = spawnSync(command, arguments_, { encoding: "utf8", windowsHide: true });
+  if (result.error !== undefined) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    const reason = result.stderr.trim();
+    throw new Error(reason.length > 0 ? reason : `command exited with status ${result.status ?? "unknown"}`);
+  }
+}
+
 function formatManagedPathError(kind: "directory" | "file", path: string, reason: string): Error {
   return new Error(`Cannot manage ${kind} at ${path}: ${reason}.`);
 }
 
-function ensureOwnerOnlyPermissions(path: string, mode: number, kind: "directory" | "file", platform: NodeJS.Platform): void {
+function ensureOwnerOnlyPermissions(
+  path: string,
+  mode: number,
+  kind: "directory" | "file",
+  platform: NodeJS.Platform,
+  windowsAclCommand: WindowsAclCommand,
+): void {
   if (!supportsPosixModes(platform)) {
+    try {
+      windowsAclCommand("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WINDOWS_ACL_SCRIPT, path, kind]);
+    } catch (error) {
+      const reason = error instanceof Error && error.message.length > 0 ? error.message : "ACL update failed";
+      throw formatManagedPathError(kind, path, reason);
+    }
     return;
   }
 
@@ -142,7 +180,11 @@ function ensureOwnerOnlyPermissions(path: string, mode: number, kind: "directory
   }
 }
 
-export function ensureOwnerOnlyDirectory(directoryPath: string, platform: NodeJS.Platform = process.platform): void {
+export function ensureOwnerOnlyDirectory(
+  directoryPath: string,
+  platform: NodeJS.Platform = process.platform,
+  windowsAclCommand: WindowsAclCommand = runWindowsAclCommand,
+): void {
   try {
     const existing = lstatSync(directoryPath, { throwIfNoEntry: false });
     if (existing?.isSymbolicLink()) {
@@ -153,7 +195,7 @@ export function ensureOwnerOnlyDirectory(directoryPath: string, platform: NodeJS
     }
 
     mkdirSync(directoryPath, { recursive: true, mode: 0o700 });
-    ensureOwnerOnlyPermissions(directoryPath, 0o700, "directory", platform);
+    ensureOwnerOnlyPermissions(directoryPath, 0o700, "directory", platform, windowsAclCommand);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("Cannot manage directory at ")) {
       throw error;
@@ -163,9 +205,13 @@ export function ensureOwnerOnlyDirectory(directoryPath: string, platform: NodeJS
   }
 }
 
-export function ensureOwnerOnlyFile(filePath: string, platform: NodeJS.Platform = process.platform): void {
+export function ensureOwnerOnlyFile(
+  filePath: string,
+  platform: NodeJS.Platform = process.platform,
+  windowsAclCommand: WindowsAclCommand = runWindowsAclCommand,
+): void {
   try {
-    ensureOwnerOnlyDirectory(dirname(filePath), platform);
+    ensureOwnerOnlyDirectory(dirname(filePath), platform, windowsAclCommand);
 
     const existing = lstatSync(filePath, { throwIfNoEntry: false });
     if (existing?.isSymbolicLink()) {
@@ -179,7 +225,7 @@ export function ensureOwnerOnlyFile(filePath: string, platform: NodeJS.Platform 
       writeFileSync(filePath, "", { mode: 0o600 });
     }
 
-    ensureOwnerOnlyPermissions(filePath, 0o600, "file", platform);
+    ensureOwnerOnlyPermissions(filePath, 0o600, "file", platform, windowsAclCommand);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("Cannot manage file at ")) {
       throw error;
