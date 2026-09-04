@@ -139,6 +139,49 @@ test("ensureOwnerOnlyFile creates and tightens existing files", () => {
   });
 });
 
+test("ensureOwnerOnlyDirectory replaces Windows inherited ACLs with an owner-only ACL", () => {
+  withTempDirectory((root) => {
+    const directoryPath = join(root, "managed-dir");
+    const commands: Array<Readonly<{ command: string; arguments_: readonly string[] }>> = [];
+
+    ensureOwnerOnlyDirectory(directoryPath, "win32", (command, arguments_) => {
+      commands.push({ command, arguments_ });
+    });
+
+    expect(commands).toHaveLength(1);
+    expect(commands[0]?.command).toBe("powershell.exe");
+    expect(commands[0]?.arguments_.slice(0, 3)).toEqual(["-NoProfile", "-NonInteractive", "-Command"]);
+    expect(commands[0]?.arguments_.at(-2)).toBe(directoryPath);
+    expect(commands[0]?.arguments_.at(-1)).toBe("directory");
+    expect(commands[0]?.arguments_[3]).toContain("SetAccessRuleProtection($true, $false)");
+    expect(commands[0]?.arguments_[3]).toContain("param([string]$path, [string]$kind)");
+    expect(commands[0]?.arguments_[3]).toContain("$isDirectory = $kind -eq 'directory'");
+    expect(commands[0]?.arguments_[3]).toContain("DirectorySecurity");
+  });
+});
+
+test("ensureOwnerOnlyFile hardens Windows parent directories and fails closed on ACL errors", () => {
+  withTempDirectory((root) => {
+    const filePath = join(root, "managed-file", "config.json");
+    const commands: Array<readonly string[]> = [];
+
+    ensureOwnerOnlyFile(filePath, "win32", (_command, arguments_) => {
+      commands.push(arguments_);
+    });
+
+    expect(commands).toHaveLength(2);
+    expect(commands[0]?.at(-1)).toBe("directory");
+    expect(commands[1]?.at(-2)).toBe(filePath);
+    expect(commands[1]?.at(-1)).toBe("file");
+    expect(commands[1]?.[3]).toContain("FileSecurity");
+    expect(commands[1]?.[3]).not.toContain("param([string]$path, [bool]$isDirectory)");
+
+    expect(() => ensureOwnerOnlyDirectory(join(root, "blocked"), "win32", () => {
+      throw new Error("access denied");
+    })).toThrow(/Cannot manage directory at .*: access denied\./);
+  });
+});
+
 test("ensureOwnerOnlyDirectory and ensureOwnerOnlyFile reject incompatible existing paths", () => {
   withTempDirectory((root) => {
     const filePath = join(root, "file-as-directory");
