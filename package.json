@@ -15,6 +15,10 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@secretlint/core": "13.0.5",
+    "@secretlint/secretlint-rule-preset-recommend": "13.0.5"
+  },
   "devDependencies": {
     "@opencode-ai/plugin": "1.18.27",
     "bun-types": "latest",

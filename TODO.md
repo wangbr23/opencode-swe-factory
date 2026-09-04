@@ -9,10 +9,10 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T1` Scaffold the publishable TypeScript/Bun package with core, CLI, OpenCode, and test entry points — agent, complexity: simple, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T2` Define the versioned configuration schema, defaults, and validation — agent, complexity: simple, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T3` Implement the hardened SQLite connection lifecycle — agent, complexity: complex, depends-on: T1, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T4` Build the OpenCode 1.18.27 compatibility harness and tested-version manifest — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T4` Build the OpenCode 1.18.27 compatibility harness and tested-version manifest — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T5` Implement feature-toggle precedence and the private-mode short circuit — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T6` Implement project identity resolution and alias persistence — agent, complexity: complex, depends-on: T7, T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T7` Implement high/low-confidence secret classification and redaction — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T7` Implement high/low-confidence secret classification and redaction — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T8` Implement the human-gated lesson candidate and approval state machine — agent, complexity: complex, depends-on: T6, T7, T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T9` Add the CLI interactive lesson-review command — agent, complexity: complex, depends-on: T27, T35, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T10` Add the schema-versioned JSONL export command — agent, complexity: complex, depends-on: T7, T27, T32, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
