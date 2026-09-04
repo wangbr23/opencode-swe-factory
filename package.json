@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@opencode-ai/plugin": "1.18.27",
     "bun-types": "latest",
     "typescript": "latest"
   },

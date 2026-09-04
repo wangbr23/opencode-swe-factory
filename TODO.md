@@ -7,7 +7,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 ## Coding memory and model router
 
 - [x] `T1` Scaffold the publishable TypeScript/Bun package with core, CLI, OpenCode, and test entry points — agent, complexity: simple, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T2` Define the versioned configuration schema, defaults, and validation — agent, complexity: simple, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T2` Define the versioned configuration schema, defaults, and validation — agent, complexity: simple, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T3` Implement the hardened SQLite connection lifecycle — agent, complexity: complex, depends-on: T1, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T4` Build the OpenCode 1.18.27 compatibility harness and tested-version manifest — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T5` Implement feature-toggle precedence and the private-mode short circuit — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md

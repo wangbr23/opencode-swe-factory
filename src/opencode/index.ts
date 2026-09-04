@@ -1,5 +1,7 @@
 import { createCoreContext, type CoreContext } from "../core/index.js";
 
+export * from "./compatibility.js";
+
 export type OpenCodeAdapterScaffold = Readonly<{
   kind: "opencode-adapter";
   core: CoreContext;
