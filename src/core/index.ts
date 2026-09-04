@@ -5,6 +5,7 @@ export { PACKAGE_NAME };
 export * from "./config.js";
 export * from "./paths.js";
 export * from "./secrets.js";
+export * from "./sqlite.js";
 
 export type CoreContext = Readonly<{
   packageName: typeof PACKAGE_NAME;
