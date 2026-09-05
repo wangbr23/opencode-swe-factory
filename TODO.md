@@ -11,12 +11,12 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T3` Implement the hardened SQLite connection lifecycle — agent, complexity: complex, depends-on: T1, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T4` Build the OpenCode 1.18.27 compatibility harness and tested-version manifest — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T5` Implement feature-toggle precedence and the private-mode short circuit — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T6` Implement project identity resolution and alias persistence — agent, complexity: complex, depends-on: T7, T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T6` Implement project identity resolution and alias persistence — agent, complexity: complex, depends-on: T7, T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T7` Implement high/low-confidence secret classification and redaction — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T8` Implement the human-gated lesson candidate and approval state machine — agent, complexity: complex, depends-on: T6, T7, T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T9` Add the CLI interactive lesson-review command — agent, complexity: complex, depends-on: T27, T35, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T10` Add the schema-versioned JSONL export command — agent, complexity: complex, depends-on: T7, T27, T32, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T11` Implement the SQLite-consistent backup snapshot manager — agent, complexity: complex, depends-on: T3, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T11` Implement the SQLite-consistent backup snapshot manager — agent, complexity: complex, depends-on: T3, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T12` Implement atomic privacy-first hard deletion across live and managed storage — agent, complexity: complex, depends-on: T31, T32, T34, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T13` Implement the curated-document source admission policy — agent, complexity: complex, depends-on: T6, T7, T27, T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T14` Implement scoped lexical lesson and document retrieval — agent, complexity: complex, depends-on: T34, T44, design: docs/designs/2026-09-03-coding-memory-model-router.md
@@ -33,8 +33,8 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T25` Add the cross-process correction-recall and paraphrase acceptance scenario — agent, complexity: complex, depends-on: T39, T71, T85, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T26` Resolve OS-specific package paths and enforce owner-only permissions — agent, complexity: simple, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T27` Implement package configuration loading and persistence — agent, complexity: simple, depends-on: T2, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T28` Implement serialized schema migrations and the migration harness — agent, complexity: complex, depends-on: T3, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T29` Add the project, alias, and project-setting schema migration — agent, complexity: complex, depends-on: T28, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T28` Implement serialized schema migrations and the migration harness — agent, complexity: complex, depends-on: T3, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T29` Add the project, alias, and project-setting schema migration — agent, complexity: complex, depends-on: T28, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T30` Add the lesson, immutable-version, and pending-candidate schema migration — agent, complexity: complex, depends-on: T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T31` Add the document-source, chunk, FTS, and embedding schema migration — agent, complexity: complex, depends-on: T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T32` Add the task, execution-profile, and outcome-signal schema migration — agent, complexity: complex, depends-on: T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
@@ -47,7 +47,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T39` Implement the inline lesson-approval card flow — agent, complexity: complex, depends-on: T38, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T40` Implement expiring pending-candidate cleanup — agent, complexity: simple, depends-on: T8, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T41` Add transactional restore into a validated replacement database — agent, complexity: complex, depends-on: T10, T28, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T42` Implement backup scheduling and versioned retention — agent, complexity: complex, depends-on: T11, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T42` Implement backup scheduling and versioned retention — agent, complexity: complex, depends-on: T11, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T43` Implement heading-aware Markdown chunking with stable citations — agent, complexity: simple, depends-on: T13, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T44` Implement incremental FTS indexing and stale-source cleanup — agent, complexity: complex, depends-on: T43, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T45` Implement source trust classes and project-over-global precedence — agent, complexity: complex, depends-on: T14, design: docs/designs/2026-09-03-coding-memory-model-router.md
@@ -73,7 +73,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T65` Add the model-mutation runtime probe and immediate/following-turn contracts — agent, complexity: complex, depends-on: T4, T64, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T66` Implement bounded low-risk exploration with budget and disclosure rules — agent, complexity: complex, depends-on: T23, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T67` Add the OpenCode routing contract suite — agent, complexity: complex, depends-on: T47, T66, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T68` Implement redacted local diagnostics and health reporting without telemetry — agent, complexity: simple, depends-on: T7, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T68` Implement redacted local diagnostics and health reporting without telemetry — agent, complexity: simple, depends-on: T7, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T69` Add CLI configuration and feature-toggle controls — agent, complexity: simple, depends-on: T5, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T70` Add OpenCode feature-toggle and private-mode tools — agent, complexity: simple, depends-on: T4, T5, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T71` Compose plugin initialization, registrations, scheduling hooks, and fail-open fallback — agent, complexity: complex, depends-on: T4, T11, T15, T38, T53, T68, T70, design: docs/designs/2026-09-03-coding-memory-model-router.md
@@ -86,7 +86,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T78` Add recommendation, override, automatic-routing, and exploration acceptance scenarios — agent, complexity: complex, depends-on: T66, T67, T71, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T79` Document installation, controls, network behavior, privacy boundaries, and recovery — agent, complexity: simple, depends-on: T69, T72, T74, T76, T77, T78, T81, T82, T86, T90, T91, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T80` Validate the packaged entry points in a clean OpenCode home — agent, complexity: complex, depends-on: T73, T74, T75, T76, T77, T78, T79, T84, T89, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T81` Add CLI backup and backup-status commands — agent, complexity: simple, depends-on: T11, T42, T68, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T81` Add CLI backup and backup-status commands — agent, complexity: simple, depends-on: T11, T42, T68, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T82` Add the explicit embedding-install and offline-status command — agent, complexity: simple, depends-on: T16, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T83` Add SQLite migration, contention, and failure-injection tests — agent, complexity: complex, depends-on: T32, T41, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T84` Review approval-card and receipt usability in live sessions — manual, depends-on: T21, T39, design: docs/designs/2026-09-03-coding-memory-model-router.md
