@@ -5,6 +5,7 @@ export { PACKAGE_NAME };
 export * from "./backup.js";
 export * from "./config.js";
 export * from "./diagnostics.js";
+export * from "./lessons.js";
 export * from "./migrations.js";
 export * from "./paths.js";
 export * from "./project-identity.js";
