@@ -3,20 +3,29 @@ import { randomUUID } from "node:crypto";
 import { readdirSync, renameSync, rmSync, statSync, unlinkSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
+import { MANAGED_BACKUP_PATTERN } from "./backup-types.js";
+import type {
+  BackupScheduleState,
+  BackupSnapshot,
+  CreateBackupSnapshotInput,
+  IntegrityCheckRow,
+  ManagedBackup,
+  ManagedBackupInfo,
+  RunScheduledBackupInput,
+  ScheduledBackupOutcome,
+} from "./backup-types.js";
 import type { ConfigV1 } from "./config.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile, resolveManagedPaths } from "./paths.js";
 import type { SqliteConnection } from "./sqlite.js";
 
-export type BackupSnapshot = Readonly<{
-  backupPath: string;
-  createdAt: string;
-  sizeBytes: number;
-}>;
-
-export type CreateBackupSnapshotInput = Readonly<{
-  backupDirectory?: string;
-  now?: Date;
-}>;
+export type {
+  BackupScheduleState,
+  BackupSnapshot,
+  CreateBackupSnapshotInput,
+  ManagedBackupInfo,
+  RunScheduledBackupInput,
+  ScheduledBackupOutcome,
+} from "./backup-types.js";
 
 export class BackupSnapshotError extends Error {
   readonly backupDirectory: string;
@@ -29,10 +38,6 @@ export class BackupSnapshotError extends Error {
     this.cleanupError = cleanupError;
   }
 }
-
-type IntegrityCheckRow = Readonly<{
-  integrity_check: string;
-}>;
 
 function backupFileTimestamp(createdAt: Date): string {
   return createdAt.toISOString().replaceAll(/[-:.]/g, "");
@@ -91,8 +96,6 @@ export function createBackupSnapshot(
   }
 }
 
-const MANAGED_BACKUP_PATTERN = /^backup-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})Z-[0-9a-f-]{36}\.sqlite$/;
-
 export class BackupScheduleError extends Error {
   readonly backupDirectory: string;
   readonly failedBackupPath: string;
@@ -106,26 +109,6 @@ export class BackupScheduleError extends Error {
     this.deletedBackupPaths = deletedBackupPaths;
   }
 }
-
-export type ScheduledBackupOutcome =
-  | Readonly<{ status: "disabled" }>
-  | Readonly<{ status: "not-due"; latestBackupAt: string | null; nextDueAt: string | null }>
-  | Readonly<{
-      status: "created";
-      snapshot: BackupSnapshot;
-      deletedBackupPaths: ReadonlyArray<string>;
-    }>;
-
-export type RunScheduledBackupInput = Readonly<{
-  backups: ConfigV1["backups"];
-  backupDirectory?: string;
-  now?: Date;
-}>;
-
-type ManagedBackup = Readonly<{
-  backupPath: string;
-  createdAt: Date;
-}>;
 
 function parseManagedBackupPath(fileName: string, backupDirectory: string): ManagedBackup | undefined {
   const match = MANAGED_BACKUP_PATTERN.exec(fileName);
@@ -169,17 +152,6 @@ export function listManagedBackups(backupDirectory: string): ReadonlyArray<Manag
 function toIsoTimestamp(createdAt: Date): string {
   return createdAt.toISOString();
 }
-
-export type ManagedBackupInfo = Readonly<{
-  backupPath: string;
-  createdAt: string;
-}>;
-
-export type BackupScheduleState = Readonly<{
-  latestBackupAt: string | null;
-  nextDueAt: string | null;
-  isDue: boolean;
-}>;
 
 /**
  * Reports when the next scheduled backup is due from the managed snapshots on

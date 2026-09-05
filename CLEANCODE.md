@@ -7,12 +7,14 @@ Project-specific coding standards for agents and humans. Keep this practical and
 - Prefer simple, direct solutions over clever abstractions.
 - Keep changes small, focused, and reviewable.
 - Optimize for readability and maintainability before novelty.
+- Prefer simple, readable code over compact code. Never pack a function into one dense line when plain multi-step code says the same thing more clearly — cleverness that costs readability is a bug.
 - Do not introduce abstractions until there are at least two real call sites or a clear present need.
 - Surface ambiguity, conflicting requirements, or risky tradeoffs instead of guessing silently.
 
 ## Structure
 
-- Avoid god files and oversized components/modules.
+- Always keep types and constants in their own dedicated files (e.g. `types.ts`, `constants.ts`), separate from implementation code — do this from the start, not only when a file grows large.
+- Avoid god files and oversized components/modules. Prefer small files — when a file grows past what fits comfortably in your head, split further into their own dedicated files.
 - Put reusable logic in the project's established `lib`/`utils`/service layer once reuse is real.
 - Keep code close to where it is used until it has a reason to move.
 - Prefer explicit names that describe domain intent over generic names like `data`, `item`, or `helper`.

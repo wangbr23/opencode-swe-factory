@@ -1,81 +1,23 @@
 import {
   TASK_BOUNDARY_VALUES,
   TASK_TAXONOMY_VERSION,
-  type TaskActivity,
-  type TaskBoundary,
   type TaskComplexity,
-  type TaskDomain,
   type TaskProfileSignal,
   type TaskRisk,
 } from "./task-taxonomy.js";
 import { scanTextForSecrets } from "./secrets.js";
+import {
+  ACTIVITY_KEYWORDS,
+  DOMAIN_KEYWORDS,
+  HIGH_COMPLEXITY_KEYWORDS,
+  HIGH_RISK_KEYWORDS,
+  MAX_SUMMARY_CHARS,
+  STACK_KEYWORDS,
+  type ProfileTaskInput,
+  type TaskProfile,
+} from "./task-profile-types.js";
 
-export type TaskProfile = Readonly<{
-  taxonomyVersion: typeof TASK_TAXONOMY_VERSION;
-  boundary: TaskBoundary;
-  activity: TaskActivity | null;
-  domain: TaskDomain | null;
-  complexity: TaskComplexity;
-  risk: TaskRisk;
-  stack: ReadonlyArray<string>;
-  signals: ReadonlyArray<TaskProfileSignal>;
-  summary: string;
-}>;
-
-export type ProfileTaskInput = Readonly<{
-  taskText: string;
-  boundary: TaskBoundary;
-  declaredStack?: ReadonlyArray<string>;
-}>;
-
-const MAX_SUMMARY_CHARS = 200;
-
-/** Fixed evaluation order; ties resolve to the earliest keyword group. */
-const ACTIVITY_KEYWORDS: ReadonlyArray<readonly [TaskActivity, ReadonlyArray<string>]> = [
-  ["fix", ["fix", "bug", "broken", "regression", "crash", "fails", "failing"]],
-  ["test", ["test", "coverage"]],
-  ["review", ["review"]],
-  ["document", ["docs", "documentation", "readme", "journal"]],
-  ["investigate", ["investigate", "debug", "why", "root cause", "analyze", "figure out"]],
-  ["configure", ["configure", "setup", "install"]],
-  ["refactor", ["refactor", "restructure", "clean up", "cleanup", "simplify"]],
-  ["implement", ["add", "implement", "create", "build", "feature", "support"]],
-];
-
-const DOMAIN_KEYWORDS: ReadonlyArray<readonly [TaskDomain, ReadonlyArray<string>]> = [
-  ["security", ["auth", "secret", "token", "permission", "credential", "vulnerability"]],
-  ["frontend", ["ui", "css", "component", "react", "style", "browser"]],
-  ["backend", ["api", "endpoint", "server", "route", "database", "sql", "sqlite"]],
-  ["infrastructure", ["docker", "ci", "cd", "deploy", "pipeline", "kubernetes"]],
-  ["tooling", ["cli", "script", "command", "shell"]],
-  ["documentation", ["docs", "documentation", "readme"]],
-  ["data", ["migration", "schema", "dataset", "index"]],
-];
-
-const STACK_KEYWORDS: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
-  ["bun", ["bun"]],
-  ["typescript", ["typescript", "tsconfig"]],
-  ["node", ["node"]],
-  ["react", ["react"]],
-  ["vue", ["vue"]],
-  ["python", ["python"]],
-  ["rust", ["rust", "cargo"]],
-  ["go", ["golang"]],
-  ["sqlite", ["sqlite"]],
-  ["postgres", ["postgres"]],
-  ["docker", ["docker"]],
-];
-
-const HIGH_COMPLEXITY_KEYWORDS = [
-  "architecture",
-  "redesign",
-  "migration",
-  "rewrite",
-  "integrate",
-  "across",
-];
-
-const HIGH_RISK_KEYWORDS = ["delete", "drop", "purge", "production", "credential", "secret", "password"];
+export type { ProfileTaskInput, TaskProfile } from "./task-profile-types.js";
 
 export class TaskProfileInputError extends Error {}
 

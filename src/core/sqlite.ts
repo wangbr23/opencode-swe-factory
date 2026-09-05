@@ -2,8 +2,9 @@ import { Database } from "bun:sqlite";
 import { isAbsolute } from "node:path";
 
 import { ensureOwnerOnlyFile } from "./paths.js";
+import { SQLITE_BUSY_TIMEOUT_MS, type SqliteConnection } from "./sqlite-types.js";
 
-export const SQLITE_BUSY_TIMEOUT_MS = 5_000;
+export { SQLITE_BUSY_TIMEOUT_MS, type SqliteConnection } from "./sqlite-types.js";
 
 export class SqliteConnectionInitializationError extends Error {
   readonly databasePath: string;
@@ -29,13 +30,6 @@ export class SqlitePrerequisiteError extends Error {
     this.cleanupError = cleanupError;
   }
 }
-
-export type SqliteConnection = Readonly<{
-  database: Database;
-  databasePath: string;
-  readonly isClosed: boolean;
-  close(): void;
-}>;
 
 type PragmaRow = Readonly<Record<string, string | number>>;
 

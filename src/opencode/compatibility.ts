@@ -1,18 +1,13 @@
-export const OPENCODE_COMPATIBILITY_MANIFEST = {
-  schemaVersion: 1,
-  minimumVersion: "1.18.27",
-  testedVersions: ["1.18.27"],
-} as const;
+import {
+  OPENCODE_COMPATIBILITY_MANIFEST,
+  type OpenCodeCompatibility,
+  type Version,
+} from "../core/compatibility-types.js";
 
-export type OpenCodeCompatibility =
-  | Readonly<{ status: "supported"; version: string }>
-  | Readonly<{
-      status: "unsupported";
-      version: string;
-      reason: "invalid-version" | "below-minimum-version" | "untested-version";
-    }>;
-
-type Version = readonly [major: number, minor: number, patch: number];
+export {
+  OPENCODE_COMPATIBILITY_MANIFEST,
+  type OpenCodeCompatibility,
+} from "../core/compatibility-types.js";
 
 export function checkOpenCodeCompatibility(version: string): OpenCodeCompatibility {
   const parsedVersion = parseVersion(version);

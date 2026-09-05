@@ -1,27 +1,26 @@
 import { lintSource } from "@secretlint/core";
-import { rules as recommendedSecretLintRules } from "@secretlint/secretlint-rule-preset-recommend";
+import {
+  exampleContextPattern,
+  genericCredentialPattern,
+  hashPattern,
+  privateKeyRuleId,
+  secretLintConfig,
+  tokenPattern,
+  type SecretConfidence,
+  type SecretFinding,
+  type SecretFindingKind,
+  type SecretScanDisposition,
+  type SecretScanResult,
+  type UnmergedFinding,
+} from "./secrets-types.js";
 
-export type SecretConfidence = "high" | "low";
-
-export type SecretFindingKind = "credential" | "token-shape" | "hash" | "high-entropy";
-
-export type SecretScanDisposition = "clear" | "acknowledgment-required" | "blocked";
-
-export type SecretFinding = Readonly<{
-  confidence: SecretConfidence;
-  kinds: ReadonlyArray<SecretFindingKind>;
-  region: Readonly<{
-    start: number;
-    end: number;
-  }>;
-  scannerRuleIds: ReadonlyArray<string>;
-}>;
-
-export type SecretScanResult = Readonly<{
-  disposition: SecretScanDisposition;
-  findings: ReadonlyArray<SecretFinding>;
-  redactedText: string;
-}>;
+export type {
+  SecretConfidence,
+  SecretFinding,
+  SecretFindingKind,
+  SecretScanDisposition,
+  SecretScanResult,
+} from "./secrets-types.js";
 
 export class SecretScanError extends Error {
   constructor() {
@@ -29,27 +28,6 @@ export class SecretScanError extends Error {
     this.name = "SecretScanError";
   }
 }
-
-type UnmergedFinding = {
-  confidence: SecretConfidence;
-  kind: SecretFindingKind;
-  start: number;
-  end: number;
-  scannerRuleId?: string;
-};
-
-const filterCommentsRuleId = "@secretlint/secretlint-rule-filter-comments";
-const secretLintConfig = {
-  rules: recommendedSecretLintRules
-    .filter((rule) => rule.meta.id !== filterCommentsRuleId)
-    .map((rule) => ({ id: rule.meta.id, rule })),
-};
-
-const genericCredentialPattern = /\b(?:api[_-]?key|access[_-]?token|auth(?:entication)?[_-]?token|secret|password)\b\s*[:=]\s*["']?([A-Za-z0-9_./+=-]{16,})["']?/gi;
-const hashPattern = /\b(?:[a-f\d]{32}|[a-f\d]{40}|[a-f\d]{64})\b/gi;
-const tokenPattern = /[A-Za-z\d_+/-]{32,}={0,2}/g;
-const exampleContextPattern = /\b(?:example|sample|demo|dummy|placeholder|fake|test(?:ing)?|your[_-]?(?:token|key|secret))\b/i;
-const privateKeyRuleId = "@secretlint/secretlint-rule-privatekey";
 
 /**
  * Scans untrusted text before it reaches persistent storage. Findings contain

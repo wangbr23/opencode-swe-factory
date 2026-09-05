@@ -1,64 +1,30 @@
 import { randomUUID } from "node:crypto";
 
 import { markVersionSuperseded } from "./lesson-supersession.js";
+import { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "./lessons-types.js";
+import type {
+  ApprovedLesson,
+  LessonCandidate,
+  LessonCandidateDraft,
+  LessonCandidateReviewOutcome,
+  LessonScope,
+  ProposeLessonCandidateInput,
+  ReviewLessonCandidateInput,
+} from "./lessons-types.js";
 import type { SecretScanDisposition, SecretScanResult } from "./secrets.js";
 import type { SqliteConnection } from "./sqlite.js";
 
-export const DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS = 7;
-
-export type LessonScope = "project" | "global";
-
-export type LessonCandidateDraft = Readonly<{
-  title: string;
-  body: string;
-  rationale: string;
-  applicability: Readonly<Record<string, unknown>>;
-  provenance: Readonly<Record<string, unknown>>;
-}>;
-
-export type LessonCandidate = Readonly<{
-  id: string;
-  projectId: string | null;
-  scope: LessonScope;
-  draft: LessonCandidateDraft;
-  secretScan: Pick<SecretScanResult, "disposition" | "findings">;
-  requiresAcknowledgment: boolean;
-  createdAt: string;
-  expiresAt: string;
-}>;
-
-export type ApprovedLesson = Readonly<{
-  lessonId: string;
-  version: number;
-  scope: LessonScope;
-  projectId: string | null;
-  activeVersion: number;
-  createdAt: string;
-}>;
-
-export type ProposeLessonCandidateInput = Readonly<{
-  projectId: string | null;
-  scope: LessonScope;
-  draft: LessonCandidateDraft;
-  secretScan: SecretScanResult;
-  now?: Date;
-  reviewWindowDays?: number;
-}>;
-
-export type LessonCandidateDecision = "approve" | "reject" | "defer";
-
-export type ReviewLessonCandidateInput = Readonly<{
-  candidateId: string;
-  decision: LessonCandidateDecision;
-  /** Required when the candidate's scan disposition is `acknowledgment-required`. */
-  acknowledgedSecretRisk?: boolean;
-  now?: Date;
-}>;
-
-export type LessonCandidateReviewOutcome =
-  | Readonly<{ status: "approved"; lesson: ApprovedLesson }>
-  | Readonly<{ status: "rejected"; deletedCandidateId: string }>
-  | Readonly<{ status: "deferred"; candidateId: string; expiresAt: string }>;
+export { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "./lessons-types.js";
+export type {
+  ApprovedLesson,
+  LessonCandidate,
+  LessonCandidateDecision,
+  LessonCandidateDraft,
+  LessonCandidateReviewOutcome,
+  LessonScope,
+  ProposeLessonCandidateInput,
+  ReviewLessonCandidateInput,
+} from "./lessons-types.js";
 
 export class LessonCandidateError extends Error {
   readonly candidateId: string | undefined;

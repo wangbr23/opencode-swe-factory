@@ -1,5 +1,15 @@
-import type { LessonCandidateDraft } from "./lessons.js";
+import type {
+  LessonVersionSnapshot,
+  SupersedeLessonInput,
+  SupersedeLessonResult,
+} from "./lesson-supersession-types.js";
 import type { SqliteConnection } from "./sqlite.js";
+
+export type {
+  LessonVersionSnapshot,
+  SupersedeLessonInput,
+  SupersedeLessonResult,
+} from "./lesson-supersession-types.js";
 
 export class LessonSupersessionError extends Error {
   readonly lessonId: string;
@@ -10,31 +20,6 @@ export class LessonSupersessionError extends Error {
     this.lessonId = lessonId;
   }
 }
-
-export type LessonVersionSnapshot = Readonly<{
-  lessonId: string;
-  version: number;
-  title: string;
-  body: string;
-  rationale: string;
-  applicability: Readonly<Record<string, unknown>>;
-  provenance: Readonly<Record<string, unknown>>;
-  supersededByVersion: number | null;
-  createdAt: string;
-}>;
-
-export type SupersedeLessonInput = Readonly<{
-  lessonId: string;
-  draft: LessonCandidateDraft;
-  now?: Date;
-}>;
-
-export type SupersedeLessonResult = Readonly<{
-  lessonId: string;
-  supersededVersion: number;
-  version: number;
-  activeVersion: number;
-}>;
 
 type LessonRow = Readonly<{
   id: string;

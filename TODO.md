@@ -13,7 +13,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T5` Implement feature-toggle precedence and the private-mode short circuit — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T6` Implement project identity resolution and alias persistence — agent, complexity: complex, depends-on: T7, T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T7` Implement high/low-confidence secret classification and redaction — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T8` Implement the human-gated lesson candidate and approval state machine — agent, complexity: complex, depends-on: T6, T7, T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T8` Implement the human-gated lesson candidate and approval state machine — agent, complexity: complex, depends-on: T6, T7, T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T9` Add the CLI interactive lesson-review command — agent, complexity: complex, depends-on: T27, T35, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T10` Add the schema-versioned JSONL export command — agent, complexity: complex, depends-on: T7, T27, T32, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T11` Implement the SQLite-consistent backup snapshot manager — agent, complexity: complex, depends-on: T3, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
@@ -35,11 +35,11 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T27` Implement package configuration loading and persistence — agent, complexity: simple, depends-on: T2, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T28` Implement serialized schema migrations and the migration harness — agent, complexity: complex, depends-on: T3, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T29` Add the project, alias, and project-setting schema migration — agent, complexity: complex, depends-on: T28, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T30` Add the lesson, immutable-version, and pending-candidate schema migration — agent, complexity: complex, depends-on: T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T30` Add the lesson, immutable-version, and pending-candidate schema migration — agent, complexity: complex, depends-on: T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T31` Add the document-source, chunk, FTS, and embedding schema migration — agent, complexity: complex, depends-on: T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T32` Add the task, execution-profile, and outcome-signal schema migration — agent, complexity: complex, depends-on: T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T33` Add the CLI project-relink command — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T34` Implement immutable lesson supersession and active-version invariants — agent, complexity: complex, depends-on: T8, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T34` Implement immutable lesson supersession and active-version invariants — agent, complexity: complex, depends-on: T8, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T35` Implement duplicate and conflict detection for lesson candidates — agent, complexity: complex, depends-on: T14, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T36` Add the CLI lesson search and inspection command — agent, complexity: simple, depends-on: T14, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T37` Add the CLI lesson-supersession command — agent, complexity: complex, depends-on: T27, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md

@@ -13,73 +13,45 @@ import {
 import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 
+import {
+  DIAGNOSTIC_LOCK_RETRY_MS,
+  DIAGNOSTIC_LOCK_TIMEOUT_MS,
+  DIAGNOSTIC_SCHEMA_VERSION,
+  MAX_DIAGNOSTIC_RECORD_BYTES,
+  MAX_DIAGNOSTIC_SUMMARY_BYTES,
+  MAX_IDENTIFIER_LENGTH,
+  MAX_LOCAL_DIAGNOSTICS,
+  MAX_LOCAL_DIAGNOSTICS_BYTES,
+  STALE_DIAGNOSTIC_LOCK_MS,
+  diagnosticTemporaryFilePattern,
+  embeddedPathStartPattern,
+  redactedPath,
+  truncatedSummary,
+  type DiagnosticLockMetadata,
+  type DiagnosticSeverity,
+  type HealthCheck,
+  type HealthCheckStatus,
+  type HealthReport,
+  type LocalDiagnostic,
+  type LocalDiagnosticFileInput,
+  type LocalDiagnosticInput,
+} from "./diagnostics-types.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile } from "./paths.js";
 import { scanTextForSecrets } from "./secrets.js";
 
-export const DIAGNOSTIC_SCHEMA_VERSION = 1 as const;
-export const MAX_DIAGNOSTIC_RECORD_BYTES = 4_096;
-export const MAX_LOCAL_DIAGNOSTICS = 100;
-export const MAX_LOCAL_DIAGNOSTICS_BYTES = MAX_DIAGNOSTIC_RECORD_BYTES * MAX_LOCAL_DIAGNOSTICS + MAX_LOCAL_DIAGNOSTICS;
-
-const MAX_IDENTIFIER_LENGTH = 64;
-const MAX_DIAGNOSTIC_SUMMARY_BYTES = 2_048;
-const DIAGNOSTIC_LOCK_TIMEOUT_MS = 500;
-const DIAGNOSTIC_LOCK_RETRY_MS = 10;
-const STALE_DIAGNOSTIC_LOCK_MS = 30_000;
-const redactedPath = "[REDACTED_PATH]";
-const truncatedSummary = "[TRUNCATED]";
-const embeddedPathStartPattern = /file:\/\/|\\\\|\b[a-z]:[\\/]|\/(?=[^\s/])|(?<![:/\\])\.\.?[\\/]|(?<![:/\\])\S[^\r\n\\/]*[\\/]/iu;
-const diagnosticTemporaryFilePattern = /^[0-9]+\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/i;
-
-type DiagnosticLockMetadata = Readonly<{
-  pid: number;
-  createdAt: string;
-}>;
-
-export type DiagnosticSeverity = "info" | "warning" | "error";
-
-export type LocalDiagnostic = Readonly<{
-  schemaVersion: typeof DIAGNOSTIC_SCHEMA_VERSION;
-  timestamp: string;
-  component: string;
-  code: string;
-  severity: DiagnosticSeverity;
-  summary: string;
-  path?: typeof redactedPath;
-}>;
-
-export type LocalDiagnosticInput = Readonly<{
-  component: string;
-  code: string;
-  severity: DiagnosticSeverity;
-  summary: string;
-  path?: string;
-}>;
-
-export type LocalDiagnosticFileInput = Readonly<{
-  filePath: string;
-  now?: () => Date;
-}>;
-
-export type HealthCheckStatus = "healthy" | "degraded" | "unavailable";
-
-export type HealthCheck = Readonly<{
-  component: string;
-  status: HealthCheckStatus;
-  reason?: string;
-}>;
-
-export type HealthReport = Readonly<{
-  generatedAt: string;
-  status: HealthCheckStatus;
-  externalTelemetry: false;
-  checks: ReadonlyArray<HealthCheck>;
-  diagnostics: Readonly<{
-    info: number;
-    warning: number;
-    error: number;
-  }>;
-}>;
+export {
+  DIAGNOSTIC_SCHEMA_VERSION,
+  MAX_DIAGNOSTIC_RECORD_BYTES,
+  MAX_LOCAL_DIAGNOSTICS,
+  MAX_LOCAL_DIAGNOSTICS_BYTES,
+  type DiagnosticSeverity,
+  type HealthCheck,
+  type HealthCheckStatus,
+  type HealthReport,
+  type LocalDiagnostic,
+  type LocalDiagnosticFileInput,
+  type LocalDiagnosticInput,
+} from "./diagnostics-types.js";
 
 export class LocalDiagnosticReadError extends Error {
   readonly filePath: string;

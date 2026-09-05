@@ -1,10 +1,22 @@
 import { createHash, randomUUID } from "node:crypto";
 import { isAbsolute, normalize } from "node:path";
 
+import { REMOTE_HASH_ALGORITHM, SUPPORTED_REMOTE_PROTOCOLS } from "./project-identity-types.js";
+import type {
+  AliasRow,
+  ProjectIdentityResult,
+  ProjectRow,
+  ResolvedProject,
+  ResolveProjectIdentityInput,
+} from "./project-identity-types.js";
 import type { SqliteConnection } from "./sqlite.js";
 
-const REMOTE_HASH_ALGORITHM = "sha256";
-const SUPPORTED_REMOTE_PROTOCOLS = new Set(["http:", "https:", "ssh:", "git:"]);
+export type {
+  ProjectIdentityResult,
+  ProjectResolution,
+  ResolvedProject,
+  ResolveProjectIdentityInput,
+} from "./project-identity-types.js";
 
 export class ProjectIdentityError extends Error {
   readonly projectPath: string;
@@ -27,39 +39,6 @@ export class ProjectIdentityConflictError extends ProjectIdentityError {
     this.conflictingRemote = conflicting?.remote;
   }
 }
-
-export type ResolvedProject = Readonly<{
-  id: string;
-  path: string;
-  remoteHash: string | null;
-  createdAt: string;
-  updatedAt: string;
-}>;
-
-export type ProjectResolution = "remote-match" | "path-match" | "created";
-
-export type ProjectIdentityResult = Readonly<{
-  project: ResolvedProject;
-  resolution: ProjectResolution;
-}>;
-
-export type ResolveProjectIdentityInput = Readonly<{
-  projectPath: string;
-  remoteUrl?: string;
-  now?: Date;
-}>;
-
-type ProjectRow = Readonly<{
-  id: string;
-  remote_hash: string | null;
-  path: string;
-  created_at: string;
-  updated_at: string;
-}>;
-
-type AliasRow = Readonly<{
-  project_id: string;
-}>;
 
 /**
  * Normalizes a VCS remote URL for identity hashing: scp-like syntax becomes

@@ -2,77 +2,34 @@ import { randomUUID } from "node:crypto";
 import { lstatSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
+import {
+  CONFIG_SCHEMA_VERSION,
+  DEFAULT_ALLOWLIST,
+  DEFAULT_CURATED_PATHS,
+  DEFAULT_EMBEDDING_MODEL,
+} from "./config-types.js";
+import type {
+  ConfigV1,
+  ModelAllowlistEntry,
+  PackageConfigPathInput,
+  Reader,
+  RoutingMode,
+  RoutingPreset,
+  ScopeConfig,
+  ScopeToggle,
+} from "./config-types.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile, resolveManagedPaths } from "./paths.js";
 
-export const CONFIG_SCHEMA_VERSION = 1 as const;
-
-export type RoutingMode = "recommendation-only" | "automatic" | "disabled";
-export type RoutingPreset = "balanced" | "quality" | "economy";
-export type ScopeToggle = "enabled" | "disabled";
-
-export type ScopeConfig = Readonly<{
-  global: ScopeToggle;
-  project: ScopeToggle;
-  session: ScopeToggle;
-}>;
-
-export type ModelAllowlistEntry = Readonly<{
-  provider: string;
-  model: string;
-  variant: string;
-  capabilities: ReadonlyArray<string>;
-  privacy: "local" | "remote";
-}>;
-
-export type ConfigV1 = Readonly<{
-  schemaVersion: typeof CONFIG_SCHEMA_VERSION;
-  routing: Readonly<{
-    mode: RoutingMode;
-    preset: RoutingPreset;
-    scope: ScopeConfig;
-    allowlist: ReadonlyArray<ModelAllowlistEntry>;
-    hardLimits: Readonly<{
-      maxCostPerTaskUsd: number | null;
-      maxLatencyMs: number | null;
-    }>;
-  }>;
-  retrieval: Readonly<{
-    scope: ScopeConfig;
-    curatedPaths: ReadonlyArray<string>;
-  }>;
-  recording: Readonly<{
-    scope: ScopeConfig;
-  }>;
-  modelTelemetry: Readonly<{
-    scope: ScopeConfig;
-  }>;
-  privateMode: Readonly<{
-    enabled: boolean;
-  }>;
-  embeddings: Readonly<{
-    provider: "local";
-    model: string;
-    allowRemoteDownloads: boolean;
-    artifactDirectory: string | null;
-  }>;
-  backups: Readonly<{
-    enabled: boolean;
-    schedule: Readonly<{
-      intervalDays: number | null;
-    }>;
-    retention: Readonly<{
-      maxBackups: number | null;
-    }>;
-  }>;
-  maintenance: Readonly<{
-    staleLessonDays: number | null;
-    unusedLessonDays: number | null;
-  }>;
-}>;
-
-export type PackageConfigPathInput = Readonly<{
-  configFilePath?: string;
-}>;
+export { CONFIG_SCHEMA_VERSION } from "./config-types.js";
+export type {
+  ConfigV1,
+  ModelAllowlistEntry,
+  PackageConfigPathInput,
+  RoutingMode,
+  RoutingPreset,
+  ScopeConfig,
+  ScopeToggle,
+} from "./config-types.js";
 
 export class PackageConfigLoadError extends Error {
   readonly configFilePath: string;
@@ -97,20 +54,6 @@ export class PackageConfigWriteError extends Error {
     this.cleanupError = cleanupError;
   }
 }
-
-const DEFAULT_EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
-
-const DEFAULT_ALLOWLIST: ReadonlyArray<ModelAllowlistEntry> = [];
-
-const DEFAULT_CURATED_PATHS = [
-  "AGENTS.md",
-  "CLEANCODE.md",
-  "TODO.md",
-  "docs/journal.md",
-  "docs/decisions.md",
-  "docs/specs",
-  "docs/designs",
-];
 
 export function createDefaultConfig(): ConfigV1 {
   return {
@@ -194,9 +137,6 @@ function assertKnownKeys(value: Record<string, unknown>, allowed: ReadonlyArray<
     }
   }
 }
-
-/** Every field validator shares this shape so sections can be described as a field map. */
-type Reader<T> = (value: unknown, label: string) => T;
 
 function readString(value: unknown, label: string): string {
   if (typeof value !== "string" || value.length === 0) {
