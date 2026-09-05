@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { markVersionSuperseded } from "./lesson-supersession.js";
 import type { SecretScanDisposition, SecretScanResult } from "./secrets.js";
 import type { SqliteConnection } from "./sqlite.js";
 
@@ -204,6 +205,22 @@ function commitApprovedVersion(
     createdAt = existing.created_at;
     version = nextLessonVersion(connection, lessonId);
     activeVersion = version;
+    connection.database.run(
+      "INSERT INTO lesson_versions (lesson_id, version, title, body, rationale, applicability_json, provenance_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        lessonId,
+        version,
+        draft.title,
+        draft.body,
+        draft.rationale,
+        JSON.stringify(draft.applicability),
+        JSON.stringify(draft.provenance),
+        approvedAt,
+      ],
+    );
+    if (existing.active_version !== null) {
+      markVersionSuperseded(connection, lessonId, existing.active_version, activeVersion);
+    }
     connection.database.run("UPDATE lessons SET active_version = ?, updated_at = ? WHERE id = ?", [
       activeVersion,
       approvedAt,
@@ -218,21 +235,20 @@ function commitApprovedVersion(
       "INSERT INTO lessons (id, project_id, scope, active_version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
       [lessonId, row.project_id, row.scope, activeVersion, approvedAt, approvedAt],
     );
+    connection.database.run(
+      "INSERT INTO lesson_versions (lesson_id, version, title, body, rationale, applicability_json, provenance_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        lessonId,
+        version,
+        draft.title,
+        draft.body,
+        draft.rationale,
+        JSON.stringify(draft.applicability),
+        JSON.stringify(draft.provenance),
+        approvedAt,
+      ],
+    );
   }
-
-  connection.database.run(
-    "INSERT INTO lesson_versions (lesson_id, version, title, body, rationale, applicability_json, provenance_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    [
-      lessonId,
-      version,
-      draft.title,
-      draft.body,
-      draft.rationale,
-      JSON.stringify(draft.applicability),
-      JSON.stringify(draft.provenance),
-      approvedAt,
-    ],
-  );
 
   return { lessonId, version, scope: row.scope, projectId: row.project_id, activeVersion, createdAt };
 }
