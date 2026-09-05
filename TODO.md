@@ -10,7 +10,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T2` Define the versioned configuration schema, defaults, and validation — agent, complexity: simple, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T3` Implement the hardened SQLite connection lifecycle — agent, complexity: complex, depends-on: T1, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T4` Build the OpenCode 1.18.27 compatibility harness and tested-version manifest — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T5` Implement feature-toggle precedence and the private-mode short circuit — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T5` Implement feature-toggle precedence and the private-mode short circuit — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T6` Implement project identity resolution and alias persistence — agent, complexity: complex, depends-on: T7, T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T7` Implement high/low-confidence secret classification and redaction — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T8` Implement the human-gated lesson candidate and approval state machine — agent, complexity: complex, depends-on: T6, T7, T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
@@ -23,7 +23,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T15` Integrate fail-open primary-system-block context injection with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T16` Implement the pinned local embedding artifact manager — agent, complexity: complex, depends-on: T5, T7, T26, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T17` Implement exact semantic retrieval over scoped vectors — agent, complexity: complex, depends-on: T14, T49, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T18` Implement the versioned task taxonomy and deterministic profiler — agent, complexity: complex, depends-on: T2, T6, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T18` Implement the versioned task taxonomy and deterministic profiler — agent, complexity: complex, depends-on: T2, T6, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T19` Capture assistant-completion execution profiles and provider outcomes — agent, complexity: complex, depends-on: T32, T53, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T20` Implement decayed evidence aggregation with profile backoff and uncertainty — agent, complexity: complex, depends-on: T18, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T21` Integrate recommendation mode and compact routing receipts with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, T53, T62, design: docs/designs/2026-09-03-coding-memory-model-router.md
