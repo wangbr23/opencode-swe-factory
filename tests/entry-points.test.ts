@@ -13,9 +13,10 @@ test("entry points load and remain separated", () => {
     expect(PACKAGE_NAME).toBe("opencode-swe-factory");
     expect(core).toEqual({ packageName: PACKAGE_NAME });
     expect(adapter).toEqual({ kind: "opencode-adapter", core });
-    expect(getCliHelp()).toBe("opencode-swe-factory CLI scaffold");
+    expect(getCliHelp()).toContain("opencode-swe-factory CLI");
+    expect(getCliHelp()).toContain("backup-status");
     expect(main(["--help"])).toBe(0);
-    expect(log).toHaveBeenCalledWith("opencode-swe-factory CLI scaffold");
+    expect(log).toHaveBeenCalledWith(getCliHelp());
   } finally {
     log.mockRestore();
   }

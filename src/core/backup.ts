@@ -141,7 +141,7 @@ function parseManagedBackupPath(fileName: string, backupDirectory: string): Mana
   return { backupPath: join(backupDirectory, fileName), createdAt };
 }
 
-function listManagedBackups(backupDirectory: string): ManagedBackup[] {
+export function listManagedBackups(backupDirectory: string): ReadonlyArray<ManagedBackupInfo> {
   let entries: string[];
   try {
     entries = readdirSync(backupDirectory);
@@ -158,15 +158,54 @@ function listManagedBackups(backupDirectory: string): ManagedBackup[] {
       managed.push(parsed);
     }
   }
-  return managed.sort((first, second) =>
+  managed.sort((first, second) =>
     first.createdAt.getTime() !== second.createdAt.getTime()
       ? first.createdAt.getTime() - second.createdAt.getTime()
       : first.backupPath.localeCompare(second.backupPath),
   );
+  return managed.map((backup) => ({ backupPath: backup.backupPath, createdAt: toIsoTimestamp(backup.createdAt) }));
 }
 
 function toIsoTimestamp(createdAt: Date): string {
   return createdAt.toISOString();
+}
+
+export type ManagedBackupInfo = Readonly<{
+  backupPath: string;
+  createdAt: string;
+}>;
+
+export type BackupScheduleState = Readonly<{
+  latestBackupAt: string | null;
+  nextDueAt: string | null;
+  isDue: boolean;
+}>;
+
+/**
+ * Reports when the next scheduled backup is due from the managed snapshots on
+ * disk. Shared by the scheduled runner and CLI status so the due math cannot
+ * drift between them.
+ */
+export function getBackupScheduleState(
+  backupDirectory: string,
+  intervalDays: number | null,
+  now: Date = new Date(),
+): BackupScheduleState {
+  if (intervalDays !== null && (!Number.isInteger(intervalDays) || intervalDays <= 0)) {
+    throw new Error("backups.schedule.intervalDays must be a positive integer or null.");
+  }
+
+  const latest = listManagedBackups(backupDirectory).at(-1);
+  if (intervalDays === null || !latest) {
+    return { latestBackupAt: latest?.createdAt ?? null, nextDueAt: null, isDue: true };
+  }
+
+  const nextDueAtMs = Date.parse(latest.createdAt) + intervalDays * 24 * 60 * 60 * 1000;
+  return {
+    latestBackupAt: latest.createdAt,
+    nextDueAt: toIsoTimestamp(new Date(nextDueAtMs)),
+    isDue: now.getTime() >= nextDueAtMs,
+  };
 }
 
 function assertScheduleSettings(backups: ConfigV1["backups"]): void {
@@ -232,17 +271,13 @@ export function runScheduledBackup(connection: SqliteConnection, input: RunSched
   }
   const now = input.now ?? new Date();
 
-  const existing = listManagedBackups(backupDirectory);
-  const latest = existing.at(-1);
-  if (backups.schedule.intervalDays !== null && latest) {
-    const nextDueAtMs = latest.createdAt.getTime() + backups.schedule.intervalDays * 24 * 60 * 60 * 1000;
-    if (now.getTime() < nextDueAtMs) {
-      return {
-        status: "not-due",
-        latestBackupAt: toIsoTimestamp(latest.createdAt),
-        nextDueAt: toIsoTimestamp(new Date(nextDueAtMs)),
-      };
-    }
+  const schedule = getBackupScheduleState(backupDirectory, backups.schedule.intervalDays, now);
+  if (!schedule.isDue) {
+    return {
+      status: "not-due",
+      latestBackupAt: schedule.latestBackupAt,
+      nextDueAt: schedule.nextDueAt,
+    };
   }
 
   const snapshot = createBackupSnapshot(connection, { backupDirectory, now });
