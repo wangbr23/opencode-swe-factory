@@ -13,6 +13,8 @@ export * from "./project-identity.js";
 export * from "./secrets.js";
 export * from "./schema.js";
 export * from "./sqlite.js";
+export * from "./task-profile.js";
+export * from "./task-taxonomy.js";
 
 export type CoreContext = Readonly<{
   packageName: typeof PACKAGE_NAME;
