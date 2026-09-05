@@ -1,4 +1,4 @@
-import type { LessonCandidateDraft } from "../core/lessons.js";
+import type { LessonCandidateDraft, LessonScope } from "./lessons-types.js";
 
 export type LessonVersionSnapshot = Readonly<{
   lessonId: string;
@@ -23,4 +23,14 @@ export type SupersedeLessonResult = Readonly<{
   supersededVersion: number;
   version: number;
   activeVersion: number;
+}>;
+
+export type LessonInspection = Readonly<{
+  lessonId: string;
+  scope: LessonScope;
+  projectId: string | null;
+  activeVersion: LessonVersionSnapshot | null;
+  versionCount: number;
+  createdAt: string;
+  updatedAt: string;
 }>;

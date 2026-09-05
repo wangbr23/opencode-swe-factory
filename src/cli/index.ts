@@ -8,6 +8,7 @@ import {
   createBackupSnapshot,
   detectLessonDuplicatesAndConflicts,
   getBackupScheduleState,
+  inspectLesson,
   listManagedBackups,
   listPendingLessonCandidates,
   loadPackageConfig,
@@ -15,6 +16,7 @@ import {
   openSqliteConnection,
   releaseSchemaMigrations,
   resolveManagedPaths,
+  retrieveConfirmedLessonsLexically,
   reviewLessonCandidate,
   type LessonCandidateReviewOutcome,
   type LessonOverlapMatch,
@@ -32,11 +34,14 @@ Commands:
   backup-status   Show managed backup schedule, retention, and snapshots
   review          List pending lesson candidates
   review <id>     Review a specific candidate with overlap analysis
+  search <query>  Search confirmed lessons by keyword
+  lesson <id>     Inspect a specific confirmed lesson
 
 Options:
   --database <path>          Path to the SQLite database file
   --backup-dir <dir>         Override the managed backup directory
   --config <path>            Override the package configuration file
+  --project <id>             Filter search results to a specific project
   --acknowledge-secret-risk  Acknowledge low-confidence secret findings during approval
   --help                     Show this help`;
 }
@@ -47,6 +52,7 @@ type ParsedArgs = Readonly<{
   databasePath: string | undefined;
   backupDirectory: string | undefined;
   configFilePath: string | undefined;
+  projectId: string | undefined;
   acknowledgeSecretRisk: boolean;
 }>;
 
@@ -57,7 +63,7 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]!;
-    if (arg === "--database" || arg === "--backup-dir" || arg === "--config") {
+    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project") {
       const value = args[index + 1];
       if (value === undefined) {
         throw new Error(`Option ${arg} requires a value.`);
@@ -76,16 +82,23 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
     positional.push(arg);
   }
 
-  if (positional.length > 2) {
+  const command = positional[0];
+  const multiWordCommands = new Set(["search"]);
+  const commandArg = multiWordCommands.has(command ?? "")
+    ? positional.slice(1).join(" ") || undefined
+    : positional[1];
+
+  if (!multiWordCommands.has(command ?? "") && positional.length > 2) {
     throw new Error(`Unexpected extra arguments: ${positional.slice(2).join(" ")}.`);
   }
 
   return {
-    command: positional[0],
-    commandArg: positional[1],
+    command,
+    commandArg,
     databasePath: values.get("--database"),
     backupDirectory: values.get("--backup-dir"),
     configFilePath: values.get("--config"),
+    projectId: values.get("--project"),
     acknowledgeSecretRisk,
   };
 }
@@ -246,6 +259,69 @@ function runReviewCandidateCommand(
   }
 }
 
+function runSearchCommand(parsed: ParsedArgs): void {
+  const query = parsed.commandArg;
+  if (!query) {
+    throw new Error("Usage: search <query>");
+  }
+  const projectId = parsed.projectId ?? GLOBAL_DETECTION_PROJECT_ID;
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const results = retrieveConfirmedLessonsLexically(connection, { projectId, query });
+    if (results.length === 0) {
+      console.log("No matching lessons found.");
+      return;
+    }
+    console.log(`Found ${results.length} lesson(s):\n`);
+    for (const result of results) {
+      const scope = result.scope === "project" ? `project:${result.projectId}` : "global";
+      console.log(`  ${result.lessonId}  v${result.version}  ${scope}`);
+      console.log(`    "${result.title}"`);
+      console.log(`    ${result.body}\n`);
+    }
+  } finally {
+    connection.close();
+  }
+}
+
+function runLessonCommand(parsed: ParsedArgs): void {
+  const lessonId = parsed.commandArg;
+  if (!lessonId) {
+    throw new Error("Usage: lesson <lesson-id>");
+  }
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const inspection = inspectLesson(connection, lessonId);
+    if (!inspection) {
+      throw new Error(`Lesson ${lessonId} not found.`);
+    }
+
+    const scope = inspection.scope === "project" ? `project (${inspection.projectId})` : "global";
+    console.log(`\nLesson ${inspection.lessonId}:`);
+    console.log(`  Scope:      ${scope}`);
+    console.log(`  Versions:   ${inspection.versionCount}`);
+    console.log(`  Created:    ${inspection.createdAt}`);
+    console.log(`  Updated:    ${inspection.updatedAt}`);
+
+    if (inspection.activeVersion) {
+      const v = inspection.activeVersion;
+      console.log(`\n  Active version (v${v.version}):`);
+      console.log(`    Title:     ${v.title}`);
+      console.log(`    Body:      ${v.body}`);
+      console.log(`    Rationale: ${v.rationale}`);
+      if (v.supersededByVersion !== null) {
+        console.log(`    Superseded by: v${v.supersededByVersion}`);
+      }
+    } else {
+      console.log("\n  No active version.");
+    }
+  } finally {
+    connection.close();
+  }
+}
+
 export function main(
   args: ReadonlyArray<string> = Bun.argv.slice(2),
   options?: Readonly<{ readLine?: (question: string) => string | null }>,
@@ -267,6 +343,10 @@ export function main(
       } else {
         runReviewListCommand(parsed);
       }
+    } else if (parsed.command === "search") {
+      runSearchCommand(parsed);
+    } else if (parsed.command === "lesson") {
+      runLessonCommand(parsed);
     } else {
       console.error(`Unknown command: ${parsed.command ?? "(none)"}.`);
       return 1;

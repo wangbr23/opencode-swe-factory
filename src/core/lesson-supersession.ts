@@ -1,11 +1,14 @@
 import type {
+  LessonInspection,
   LessonVersionSnapshot,
   SupersedeLessonInput,
   SupersedeLessonResult,
 } from "../types/lesson-supersession-types.js";
+import type { LessonScope } from "../types/lessons-types.js";
 import type { SqliteConnection } from "./sqlite.js";
 
 export type {
+  LessonInspection,
   LessonVersionSnapshot,
   SupersedeLessonInput,
   SupersedeLessonResult,
@@ -195,4 +198,27 @@ export function supersedeLesson(connection: SqliteConnection, input: SupersedeLe
       activeVersion: nextVersion,
     };
   })();
+}
+
+export function inspectLesson(connection: SqliteConnection, lessonId: string): LessonInspection | null {
+  const lesson = findLessonRow(connection, lessonId);
+  if (!lesson) return null;
+
+  const activeVersion =
+    lesson.active_version !== null ? toSnapshot(getLessonVersionRow(connection, lessonId, lesson.active_version)) : null;
+
+  const versionCount =
+    connection.database
+      .query<{ count: number }, [string]>("SELECT count(*) AS count FROM lesson_versions WHERE lesson_id = ?")
+      .get(lessonId)?.count ?? 0;
+
+  return {
+    lessonId: lesson.id,
+    scope: lesson.scope as LessonScope,
+    projectId: lesson.project_id,
+    activeVersion,
+    versionCount,
+    createdAt: lesson.created_at,
+    updatedAt: lesson.updated_at,
+  };
 }
