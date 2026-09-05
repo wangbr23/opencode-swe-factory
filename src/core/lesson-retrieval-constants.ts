@@ -1,0 +1,3 @@
+export const DEFAULT_LEXICAL_LESSON_LIMIT = 10;
+export const MAX_LEXICAL_LESSON_LIMIT = 100;
+export const MAX_LEXICAL_QUERY_TERMS = 32;
