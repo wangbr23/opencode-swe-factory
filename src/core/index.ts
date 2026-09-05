@@ -8,6 +8,7 @@ export * from "./diagnostics.js";
 export * from "./migrations.js";
 export * from "./paths.js";
 export * from "./secrets.js";
+export * from "./schema.js";
 export * from "./sqlite.js";
 
 export type CoreContext = Readonly<{
