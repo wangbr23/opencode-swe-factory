@@ -14,7 +14,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T6` Implement project identity resolution and alias persistence — agent, complexity: complex, depends-on: T7, T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T7` Implement high/low-confidence secret classification and redaction — agent, complexity: complex, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T8` Implement the human-gated lesson candidate and approval state machine — agent, complexity: complex, depends-on: T6, T7, T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T9` Add the CLI interactive lesson-review command — agent, complexity: complex, depends-on: T27, T35, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T9` Add the CLI interactive lesson-review command — agent, complexity: complex, depends-on: T27, T35, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T10` Add the schema-versioned JSONL export command — agent, complexity: complex, depends-on: T7, T27, T32, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T11` Implement the SQLite-consistent backup snapshot manager — agent, complexity: complex, depends-on: T3, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T12` Implement atomic privacy-first hard deletion across live and managed storage — agent, complexity: complex, depends-on: T31, T32, T34, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md

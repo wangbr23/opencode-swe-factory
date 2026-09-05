@@ -8,6 +8,8 @@ import type {
   LessonCandidateDraft,
   LessonCandidateReviewOutcome,
   LessonScope,
+  ListPendingCandidatesInput,
+  PendingLessonCandidateSummary,
   ProposeLessonCandidateInput,
   ReviewLessonCandidateInput,
 } from "../types/lessons-types.js";
@@ -22,6 +24,8 @@ export type {
   LessonCandidateDraft,
   LessonCandidateReviewOutcome,
   LessonScope,
+  ListPendingCandidatesInput,
+  PendingLessonCandidateSummary,
   ProposeLessonCandidateInput,
   ReviewLessonCandidateInput,
 } from "../types/lessons-types.js";
@@ -305,4 +309,37 @@ export function reviewLessonCandidate(
     connection.database.run("DELETE FROM pending_lesson_candidates WHERE id = ?", [row.id]);
     return { status: "approved", lesson };
   })();
+}
+
+export function listPendingLessonCandidates(
+  connection: SqliteConnection,
+  input?: ListPendingCandidatesInput,
+): ReadonlyArray<PendingLessonCandidateSummary> {
+  const now = input?.now ?? new Date();
+  const includeExpired = input?.includeExpired ?? false;
+
+  const rows = connection.database
+    .query<CandidateRow, []>(
+      "SELECT id, project_id, scope, draft_json, created_at, expires_at FROM pending_lesson_candidates ORDER BY created_at ASC",
+    )
+    .all();
+
+  const results: PendingLessonCandidateSummary[] = [];
+  for (const row of rows) {
+    const expired = now.getTime() >= Date.parse(row.expires_at);
+    if (expired && !includeExpired) continue;
+    const stored = parseStoredCandidate(row.draft_json);
+    results.push({
+      id: row.id,
+      projectId: row.project_id,
+      scope: row.scope,
+      draft: stored.draft,
+      requiresAcknowledgment: stored.secretScan.disposition === "acknowledgment-required",
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+      expired,
+    });
+  }
+
+  return results;
 }

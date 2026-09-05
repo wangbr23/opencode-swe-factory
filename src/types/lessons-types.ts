@@ -55,3 +55,19 @@ export type LessonCandidateReviewOutcome =
   | Readonly<{ status: "approved"; lesson: ApprovedLesson }>
   | Readonly<{ status: "rejected"; deletedCandidateId: string }>
   | Readonly<{ status: "deferred"; candidateId: string; expiresAt: string }>;
+
+export type PendingLessonCandidateSummary = Readonly<{
+  id: string;
+  projectId: string | null;
+  scope: LessonScope;
+  draft: LessonCandidateDraft;
+  requiresAcknowledgment: boolean;
+  createdAt: string;
+  expiresAt: string;
+  expired: boolean;
+}>;
+
+export type ListPendingCandidatesInput = Readonly<{
+  includeExpired?: boolean;
+  now?: Date;
+}>;

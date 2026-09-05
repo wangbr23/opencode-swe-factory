@@ -6,15 +6,23 @@ import { join } from "node:path";
 import {
   applyBackupRetention,
   createBackupSnapshot,
+  detectLessonDuplicatesAndConflicts,
   getBackupScheduleState,
   listManagedBackups,
+  listPendingLessonCandidates,
   loadPackageConfig,
+  migrateSqliteSchema,
   openSqliteConnection,
+  releaseSchemaMigrations,
   resolveManagedPaths,
+  reviewLessonCandidate,
+  type LessonCandidateReviewOutcome,
+  type LessonOverlapMatch,
 } from "../core/index.js";
 import { createCoreContext } from "../core/index.js";
 
 const DEFAULT_DATABASE_FILE_NAME = "memory.sqlite";
+const GLOBAL_DETECTION_PROJECT_ID = "__global_detection__";
 
 export function getCliHelp(): string {
   return `${createCoreContext().packageName} CLI
@@ -22,24 +30,30 @@ export function getCliHelp(): string {
 Commands:
   backup          Create a managed backup snapshot now
   backup-status   Show managed backup schedule, retention, and snapshots
+  review          List pending lesson candidates
+  review <id>     Review a specific candidate with overlap analysis
 
 Options:
-  --database <path>    Path to the SQLite database file
-  --backup-dir <dir>   Override the managed backup directory
-  --config <path>      Override the package configuration file
-  --help               Show this help`;
+  --database <path>          Path to the SQLite database file
+  --backup-dir <dir>         Override the managed backup directory
+  --config <path>            Override the package configuration file
+  --acknowledge-secret-risk  Acknowledge low-confidence secret findings during approval
+  --help                     Show this help`;
 }
 
 type ParsedArgs = Readonly<{
   command: string | undefined;
+  commandArg: string | undefined;
   databasePath: string | undefined;
   backupDirectory: string | undefined;
   configFilePath: string | undefined;
+  acknowledgeSecretRisk: boolean;
 }>;
 
 function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
   const values = new Map<string, string>();
   const positional: string[] = [];
+  let acknowledgeSecretRisk = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]!;
@@ -52,21 +66,27 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
       index += 1;
       continue;
     }
+    if (arg === "--acknowledge-secret-risk") {
+      acknowledgeSecretRisk = true;
+      continue;
+    }
     if (arg.startsWith("--")) {
       throw new Error(`Unknown option ${arg}.`);
     }
     positional.push(arg);
   }
 
-  if (positional.length > 1) {
-    throw new Error(`Unexpected extra arguments: ${positional.slice(1).join(" ")}.`);
+  if (positional.length > 2) {
+    throw new Error(`Unexpected extra arguments: ${positional.slice(2).join(" ")}.`);
   }
 
   return {
     command: positional[0],
+    commandArg: positional[1],
     databasePath: values.get("--database"),
     backupDirectory: values.get("--backup-dir"),
     configFilePath: values.get("--config"),
+    acknowledgeSecretRisk,
   };
 }
 
@@ -114,7 +134,122 @@ function runBackupStatusCommand(parsed: ParsedArgs): void {
   }
 }
 
-export function main(args: ReadonlyArray<string> = Bun.argv.slice(2)): number {
+function formatOverlapMatch(match: LessonOverlapMatch): string {
+  const tag = match.relation === "duplicate" ? "DUPLICATE" : "CONFLICT";
+  const bodyPct = `${Math.round(match.bodyOverlap * 100)}%`;
+  return `    ${match.lessonId} (${match.scope}, ${tag}, body overlap: ${bodyPct})\n      "${match.title}"\n      ${match.body}`;
+}
+
+function printOutcome(outcome: LessonCandidateReviewOutcome): void {
+  if (outcome.status === "approved") {
+    console.log(`Approved as lesson ${outcome.lesson.lessonId} version ${outcome.lesson.version}.`);
+  } else if (outcome.status === "rejected") {
+    console.log(`Rejected and deleted candidate ${outcome.deletedCandidateId}.`);
+  } else {
+    console.log(`Deferred candidate ${outcome.candidateId} until ${outcome.expiresAt}.`);
+  }
+}
+
+function readDecision(
+  readLine: (question: string) => string | null,
+): "approve" | "reject" | "defer" | "quit" {
+  while (true) {
+    const answer = readLine("\nDecision [a=approve, r=reject, d=defer, q=quit]: ");
+    if (answer === null) return "quit";
+    const normalized = answer.trim().toLowerCase();
+    if (normalized === "a" || normalized === "approve") return "approve";
+    if (normalized === "r" || normalized === "reject") return "reject";
+    if (normalized === "d" || normalized === "defer") return "defer";
+    if (normalized === "q" || normalized === "quit") return "quit";
+    console.log("Invalid choice. Enter a, r, d, or q.");
+  }
+}
+
+function runReviewListCommand(parsed: ParsedArgs): void {
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const candidates = listPendingLessonCandidates(connection);
+    if (candidates.length === 0) {
+      console.log("No pending lesson candidates.");
+      return;
+    }
+    console.log(`Pending lesson candidates (${candidates.length}):\n`);
+    for (const candidate of candidates) {
+      const scope = candidate.scope === "project" ? `project:${candidate.projectId}` : "global";
+      const ack = candidate.requiresAcknowledgment ? " [secrets: acknowledgment-required]" : "";
+      console.log(`  ${candidate.id}  ${scope}  "${candidate.draft.title}"  expires ${candidate.expiresAt}${ack}`);
+    }
+    console.log("\nTo review a candidate: review <candidate-id>");
+  } finally {
+    connection.close();
+  }
+}
+
+function runReviewCandidateCommand(
+  parsed: ParsedArgs,
+  readLine: (question: string) => string | null,
+): void {
+  const candidateId = parsed.commandArg!;
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const candidates = listPendingLessonCandidates(connection);
+    const candidate = candidates.find((c) => c.id === candidateId);
+    if (!candidate) {
+      throw new Error(`Candidate ${candidateId} not found or expired.`);
+    }
+
+    const scope = candidate.scope === "project" ? `project (${candidate.projectId})` : "global";
+    console.log(`\nCandidate ${candidate.id}:`);
+    console.log(`  Title:     ${candidate.draft.title}`);
+    console.log(`  Body:      ${candidate.draft.body}`);
+    console.log(`  Rationale: ${candidate.draft.rationale}`);
+    console.log(`  Scope:     ${scope}`);
+    console.log(`  Created:   ${candidate.createdAt}`);
+    console.log(`  Expires:   ${candidate.expiresAt}`);
+    console.log(`  Secrets:   ${candidate.requiresAcknowledgment ? "acknowledgment-required" : "clear"}`);
+
+    const detectionProjectId = candidate.projectId ?? GLOBAL_DETECTION_PROJECT_ID;
+    const detection = detectLessonDuplicatesAndConflicts(connection, {
+      draft: candidate.draft,
+      projectId: detectionProjectId,
+    });
+
+    if (detection.matches.length > 0) {
+      console.log(`\n  Overlapping lessons (${detection.matches.length}):`);
+      for (const match of detection.matches) {
+        console.log(formatOverlapMatch(match));
+      }
+    } else {
+      console.log("\n  No overlapping lessons found.");
+    }
+
+    if (candidate.requiresAcknowledgment && !parsed.acknowledgeSecretRisk) {
+      console.log("\n  This candidate has low-confidence secret findings.");
+      console.log("  To approve, re-run with --acknowledge-secret-risk.");
+    }
+
+    const decision = readDecision(readLine);
+    if (decision === "quit") {
+      console.log("Skipped.");
+      return;
+    }
+
+    const reviewInput = parsed.acknowledgeSecretRisk
+      ? { candidateId: candidate.id, decision, acknowledgedSecretRisk: true as const }
+      : { candidateId: candidate.id, decision };
+    const outcome = reviewLessonCandidate(connection, reviewInput);
+    printOutcome(outcome);
+  } finally {
+    connection.close();
+  }
+}
+
+export function main(
+  args: ReadonlyArray<string> = Bun.argv.slice(2),
+  options?: Readonly<{ readLine?: (question: string) => string | null }>,
+): number {
   if (args.includes("--help") || args.length === 0) {
     console.log(getCliHelp());
     return 0;
@@ -126,6 +261,12 @@ export function main(args: ReadonlyArray<string> = Bun.argv.slice(2)): number {
       runBackupCommand(parsed);
     } else if (parsed.command === "backup-status") {
       runBackupStatusCommand(parsed);
+    } else if (parsed.command === "review") {
+      if (parsed.commandArg) {
+        runReviewCandidateCommand(parsed, options?.readLine ?? prompt);
+      } else {
+        runReviewListCommand(parsed);
+      }
     } else {
       console.error(`Unknown command: ${parsed.command ?? "(none)"}.`);
       return 1;
