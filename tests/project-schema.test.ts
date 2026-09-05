@@ -31,7 +31,7 @@ test("creates the project, alias, and project-setting schema at version 1", () =
   withTemporaryDatabase((databasePath) => {
     const { connection, result } = migrateProjectSchema(databasePath);
     try {
-      expect(result).toEqual({ status: "ready", schemaVersion: 3, appliedVersions: [1, 2, 3] });
+      expect(result).toEqual({ status: "ready", schemaVersion: 4, appliedVersions: [1, 2, 3, 4] });
 
       const tableNames = connection.database
         .query<{ name: string }, []>("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
@@ -55,7 +55,7 @@ test("reports an already-current schema when reopened without reapplying the mig
     try {
       expect(migrateSqliteSchema(reopened, releaseSchemaMigrations)).toEqual({
         status: "ready",
-        schemaVersion: 3,
+        schemaVersion: 4,
         appliedVersions: [],
       });
     } finally {

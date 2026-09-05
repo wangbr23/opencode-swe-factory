@@ -12,7 +12,7 @@ const NOW = "2026-09-04T00:00:00.000Z";
 function withTemporaryDatabase(run: (database: Database) => void): void {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-retrieval-schema-"));
   const connection = openSqliteConnection(join(directory, "memory.sqlite"));
-  migrateSqliteSchema(connection, releaseSchemaMigrations);
+  migrateSqliteSchema(connection, releaseSchemaMigrations.slice(0, 3));
   try {
     run(connection.database);
   } finally {
@@ -75,7 +75,7 @@ test("upgrades version 2 with retrieval tables and indexes existing lessons", ()
     migrateSqliteSchema(connection, releaseSchemaMigrations.slice(0, 2));
     insertLessonVersion(connection.database);
 
-    expect(migrateSqliteSchema(connection, releaseSchemaMigrations)).toEqual({
+    expect(migrateSqliteSchema(connection, releaseSchemaMigrations.slice(0, 3))).toEqual({
       status: "ready",
       schemaVersion: 3,
       appliedVersions: [3],

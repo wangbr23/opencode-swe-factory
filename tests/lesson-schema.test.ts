@@ -58,8 +58,8 @@ test("creates the lesson schema at version 2 and upgrades version-1 databases in
 
     expect(migrateSqliteSchema(connection, releaseSchemaMigrations)).toEqual({
       status: "ready",
-      schemaVersion: 3,
-      appliedVersions: [2, 3],
+      schemaVersion: 4,
+      appliedVersions: [2, 3, 4],
     });
     expect(
       connection.database.query<{ name: string }, []>("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all(),
