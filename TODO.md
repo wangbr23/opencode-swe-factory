@@ -40,7 +40,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T32` Add the task, execution-profile, and outcome-signal schema migration — agent, complexity: complex, depends-on: T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T33` Add the CLI project-relink command — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T34` Implement immutable lesson supersession and active-version invariants — agent, complexity: complex, depends-on: T8, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T35` Implement duplicate and conflict detection for lesson candidates — agent, complexity: complex, depends-on: T14, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T35` Implement duplicate and conflict detection for lesson candidates — agent, complexity: complex, depends-on: T14, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T36` Add the CLI lesson search and inspection command — agent, complexity: simple, depends-on: T14, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T37` Add the CLI lesson-supersession command — agent, complexity: complex, depends-on: T27, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T38` Add the OpenCode lesson-proposal and commit tools with activation separation — agent, complexity: complex, depends-on: T4, T5, T8, T35, design: docs/designs/2026-09-03-coding-memory-model-router.md

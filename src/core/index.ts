@@ -7,6 +7,7 @@ export * from "./config.js";
 export * from "./diagnostics.js";
 export * from "./document-admission.js";
 export * from "./feature-toggles.js";
+export * from "./lesson-duplicate-detection.js";
 export * from "./lesson-retrieval.js";
 export * from "./lesson-supersession.js";
 export * from "./lessons.js";
