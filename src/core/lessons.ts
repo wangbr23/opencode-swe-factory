@@ -4,6 +4,8 @@ import { markVersionSuperseded } from "./lesson-supersession.js";
 import { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "../types/lessons-types.js";
 import type {
   ApprovedLesson,
+  CleanupExpiredCandidatesInput,
+  CleanupExpiredCandidatesResult,
   LessonCandidate,
   LessonCandidateDraft,
   LessonCandidateReviewOutcome,
@@ -19,6 +21,8 @@ import type { SqliteConnection } from "./sqlite.js";
 export { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "../types/lessons-types.js";
 export type {
   ApprovedLesson,
+  CleanupExpiredCandidatesInput,
+  CleanupExpiredCandidatesResult,
   LessonCandidate,
   LessonCandidateDecision,
   LessonCandidateDraft,
@@ -342,4 +346,29 @@ export function listPendingLessonCandidates(
   }
 
   return results;
+}
+
+export function cleanupExpiredCandidates(
+  connection: SqliteConnection,
+  input?: CleanupExpiredCandidatesInput,
+): CleanupExpiredCandidatesResult {
+  const now = (input?.now ?? new Date()).toISOString();
+
+  const expired = connection.database
+    .query<{ id: string }, [string]>(
+      "SELECT id FROM pending_lesson_candidates WHERE expires_at <= ?",
+    )
+    .all(now);
+
+  if (expired.length === 0) {
+    return { deletedCount: 0, deletedIds: [] };
+  }
+
+  const deletedIds = expired.map((row) => row.id);
+  connection.database.run(
+    `DELETE FROM pending_lesson_candidates WHERE expires_at <= ?`,
+    [now],
+  );
+
+  return { deletedCount: deletedIds.length, deletedIds };
 }

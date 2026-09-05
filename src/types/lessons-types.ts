@@ -71,3 +71,12 @@ export type ListPendingCandidatesInput = Readonly<{
   includeExpired?: boolean;
   now?: Date;
 }>;
+
+export type CleanupExpiredCandidatesInput = Readonly<{
+  now?: Date;
+}>;
+
+export type CleanupExpiredCandidatesResult = Readonly<{
+  deletedCount: number;
+  deletedIds: ReadonlyArray<string>;
+}>;
