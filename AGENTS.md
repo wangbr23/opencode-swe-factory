@@ -23,7 +23,7 @@ This section is only for what's specific to *this* repo:
 - Commit message format:
 
 ## Architecture
-A single publishable package exposes a tool-neutral core, CLI, and OpenCode adapter. The core owns a local SQLite store, lesson lifecycle, federated indexing/retrieval, task evidence, and model routing; the adapter translates OpenCode hooks and tools into core operations. See [`docs/designs/2026-09-03-coding-memory-model-router.md`](docs/designs/2026-09-03-coding-memory-model-router.md).
+A single publishable package exposes a tool-neutral core, CLI, and OpenCode adapter. V1 owns a local SQLite store, human-approved lesson retrieval, privacy-bounded task evidence, and evidence-based model recommendations; the adapter translates OpenCode hooks and tools into core operations. Curated-document retrieval, phase-transition retrieval, and automatic model mutation are deferred until the two core value loops are validated. See [`docs/designs/2026-09-05-governed-memory-router-v1.md`](docs/designs/2026-09-05-governed-memory-router-v1.md).
 
 ## Context files
 Keep these current — they're what gives any session, model, or tool continuity without re-deriving history from scratch.

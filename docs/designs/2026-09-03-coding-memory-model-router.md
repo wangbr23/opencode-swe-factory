@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-03
 
+**Status:** Superseded for V1 scope by the [governed memory and model recommender design](2026-09-05-governed-memory-router-v1.md). The architecture details here remain applicable where the newer design does not override them.
+
 ## Problem
 
 OpenCode sessions do not reliably carry corrections, proven working methods, or model-performance knowledge into future work. Repeating all prior guidance in global Markdown instructions would eventually create an unbounded, mostly irrelevant prompt, while retaining raw sessions would add privacy risk without guaranteeing useful recall. The system needs a durable, human-controlled learning loop that retrieves only relevant context and gradually improves model selection without making the coding workflow depend on the learning subsystem.

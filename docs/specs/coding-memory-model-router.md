@@ -6,7 +6,7 @@
 
 ## Product Scope
 
-- **Decision:** The first milestone includes both durable memory and model routing. **Reasoning:** The desired feedback loop is incomplete if the system remembers working methods but cannot use accumulated task outcomes to improve model selection.
+- **Decision:** The first milestone includes human-approved durable lessons and evidence-based model recommendations. Automatic model mutation follows only after the V1 evidence gate. **Reasoning:** These two loops test the differentiated value without rebuilding generic session memory or prematurely automating sparse local evidence.
 - **Decision:** The first operator is one local user. **Reasoning:** Team identity, synchronization, and access control would add substantial infrastructure before the personal workflow is validated.
 - **Decision:** The learning and routing core is tool-neutral, with OpenCode as the only V1 adapter. **Reasoning:** A year of accumulated knowledge should not be inseparable from one host, but building multiple adapters before validating the core would expand scope unnecessarily.
 - **Decision:** Success means that a relevant approved correction is surfaced, followed, and traceable on a similar future task. **Reasoning:** Preventing repeated corrections is the primary user outcome; storage volume or autonomous behavior is not.
@@ -32,20 +32,19 @@
 
 ## Memory Boundaries
 
-- **Decision:** The system can retrieve useful project context beyond confirmed lessons, but existing project files remain authoritative. **Reasoning:** Project facts, task state, architecture decisions, and plans already have durable homes; copying them into the database would create competing sources of truth.
-- **Decision:** A federated index stores references, summaries, metadata, and embeddings for authoritative project documents. **Reasoning:** This allows unified retrieval without taking ownership away from the source files.
-- **Decision:** V1 automatically indexes curated context paths such as `AGENTS.md`, `CLEANCODE.md`, `TODO.md`, journals, decisions, specs, designs, and user-configured documentation. Source code is not indexed by default. **Reasoning:** Curated context carries durable intent, while whole-repository indexing duplicates existing code-search tools and adds noise.
+- **Decision:** V1 retrieves confirmed lessons only; existing project files remain authoritative and continue through OpenCode's normal context behavior. **Reasoning:** Project-document retrieval overlaps mature memory products and is not needed to prove the governed correction loop.
+- **Decision:** Curated project-document indexing is deferred until the V1 evidence review. **Reasoning:** Existing admission and schema groundwork can remain dormant without committing V1 to another general retrieval subsystem.
 - **Decision:** Raw prompts and responses are not retained by default. **Reasoning:** Structured summaries and metrics provide the needed signal with lower privacy risk and less retrieval noise.
 - **Decision:** Likely credentials and secrets are blocked from storage, sensitive fragments are redacted, and warnings appear before confirmation or export. **Reasoning:** Human review alone is not a reliable secret-scanning mechanism.
 
 ## Storage And Retrieval
 
-- **Decision:** A plugin-owned SQLite database is the source of truth for lessons, indexes, observations, routing evidence, and provenance. **Reasoning:** A year of versioned records and metrics requires transactions, migrations, and indexed queries that a growing Markdown file cannot provide.
+- **Decision:** A plugin-owned SQLite database is the source of truth for lessons, disposable lesson indexes, routing evidence, and provenance. **Reasoning:** Versioned approval state and recomputable evidence require transactions and indexed queries, while raw observations remain outside the product boundary.
 - **Decision:** The store lives in the operating system's per-user application-data directory, with a configurable override; repositories do not contain the database. **Reasoning:** This supports cross-project personal memory and avoids accidental commits.
 - **Decision:** Project identity prefers normalized VCS remote identity plus an explicit local project ID, falls back to path, and supports relinking or merging. **Reasoning:** Absolute paths break when repositories move, while names alone can collide.
-- **Decision:** Retrieval combines lexical and tag filtering with semantic similarity and reranking under a strict context budget. **Reasoning:** Exact search is precise, but semantic matching is needed when a future task describes the same problem differently.
+- **Decision:** Confirmed-lesson retrieval combines lexical and applicability filtering with local semantic similarity and reranking under a strict context budget. **Reasoning:** Exact search is precise, but semantic matching is needed when a future task describes the same correction differently.
 - **Decision:** Embeddings are computed locally by default; a remote embedding provider is an explicit opt-in. **Reasoning:** Even summarized project context can be sensitive, and local inference provides predictable privacy and cost.
-- **Decision:** Retrieval runs at the start of each task and at meaningful phase transitions, without changing models mid-task. **Reasoning:** This catches newly relevant guidance while avoiding continuous latency and context churn.
+- **Decision:** V1 retrieval runs once at the start of each task. Phase-transition retrieval is deferred. **Reasoning:** A single explicit boundary is sufficient to validate correction recall without adding ambiguous trigger logic.
 - **Decision:** Automatic versioned SQLite backups and portable JSONL exports run on a configurable schedule. **Reasoning:** A year-long local knowledge base must survive corruption, machine failures, and future migrations.
 
 ## Task And Outcome Representation
@@ -61,7 +60,7 @@
 - **Decision:** The router considers only explicitly allowlisted model and variant combinations. **Reasoning:** OpenCode exposes a large changing catalog with different credentials, prices, capabilities, and privacy properties; unconstrained exploration is unsafe and statistically sparse.
 - **Decision:** Routing occurs per top-level task or delegated subtask. **Reasoning:** Session-wide selection is too coarse, while per-call routing adds inconsistency and complexity.
 - **Decision:** Explicit model selection always wins. Automatic routing is a visible mode that can be restored after a manual override. **Reasoning:** Learned preferences must not remove direct user control.
-- **Decision:** Cold start uses user preferences and model capabilities as conservative priors. The system recommends models until evidence is sufficient, then may route automatically with an explanation and override. **Reasoning:** Sparse local evidence does not justify confident automation.
+- **Decision:** Cold start uses user preferences and model capabilities as conservative priors. V1 remains recommendation-only; automatic routing requires a separate post-V1 decision backed by measured evidence. **Reasoning:** Sparse local evidence does not justify confident automation.
 - **Decision:** Performance is version-specific and older observations are gradually downweighted. Scores do not transfer to a new model version without an explicit prior. **Reasoning:** Providers and model behavior change over time, so permanent pooled history would become misleading.
 - **Decision:** Controlled exploration is limited to low-risk, reversible, objectively verifiable tasks within configured cost limits, and can be disabled. **Reasoning:** Some exploration is necessary to detect improved alternatives, but production or sensitive work should not be used casually for experiments.
 - **Decision:** Routing uses a quality-dominant weighted utility across expected quality, reliability, cost, and latency, subject to hard capability, privacy, budget, and latency constraints. **Reasoning:** A much cheaper or faster model can be preferable when its expected quality is only slightly lower, but unacceptable quality cannot be traded away.
@@ -82,8 +81,8 @@
 - A confirmed correction is retrieved and applied during a paraphrased similar task in a later session.
 - Project-scoped lessons remain isolated, while approved global lessons can apply across projects.
 - A superseding correction prevents obsolete guidance from being served while preserving its audit history.
-- Hybrid retrieval finds relevant guidance that does not share exact wording with the task.
-- Synthetic and live outcome evidence changes a model recommendation or automatic route as expected.
+- Hybrid retrieval over confirmed lessons finds approved guidance that does not share exact wording with the task.
+- Synthetic and live outcome evidence changes a model recommendation as expected.
 - Explicit model selection bypasses the router.
 - Storage, embedding, and routing failures do not block ordinary OpenCode work.
 - Export, backup, and restore preserve active records, provenance, and supersession relationships.
@@ -94,6 +93,10 @@
 - Team sharing, multi-user identity, and access control.
 - Cloud storage or service operation.
 - Cross-device synchronization.
+- General transcript/session-history capture and search.
+- Curated project-document indexing and retrieval.
+- Phase-transition retrieval.
+- Automatic model mutation and controlled exploration.
 - Autonomous lesson approval or silent persistent-instruction mutation.
 - Raw transcript retention by default.
 - Whole-repository source-code indexing.

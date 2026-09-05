@@ -71,3 +71,13 @@ Append-only log of architecture decisions. One entry per decision, newest at the
 **Decision:** Hard deletion warns, vacuums the live database, purges all managed historical backups, and creates a clean baseline. High-confidence live credentials are always blocked; lower-confidence matches may proceed only after explicit acknowledgment recorded in provenance. See the [reviewed design](designs/2026-09-03-coding-memory-model-router.md).
 
 **Consequences:** A hard delete intentionally sacrifices managed recovery history and cannot retract copied exports or filesystem snapshots. Lower-confidence false positives remain usable without weakening protection for likely live credentials.
+
+## 2026-09-05 — Narrow V1 to governed lessons and model recommendations
+
+**Status:** Accepted; supersedes the V1 scope portions of the 2026-09-03 architecture decisions where they require curated-document retrieval, phase-transition retrieval, or automatic model routing.
+
+**Context:** Claude-Mem is a mature Apache-2.0 product that already supports OpenCode and provides automatic session capture, AI compression, history search, context injection, a viewer, and multi-host integrations. Its documented extension surface is a worker HTTP API, not an importable memory library, and its episodic observation model stores broad session content and sends it to a configured compression provider. It does not provide the human-approved lesson lifecycle or structured model-outcome evidence required here.
+
+**Decision:** Keep an independent, dependency-light package focused on normative memory and measured recommendations. V1 proves cross-process recall of a human-approved correction and an evidence-driven change in model recommendation. Defer curated-document retrieval, phase-transition retrieval, automatic model mutation, and controlled exploration behind a manual post-V1 evidence review. Do not make Claude-Mem a dependency or write to its database; consider only an optional read-only HTTP bridge after V1.
+
+**Consequences:** Existing document admission and schema work remains dormant rather than removed. Approved-lesson semantic retrieval remains in V1 because paraphrased correction recall is a core outcome. Generic session memory is left to Claude-Mem or similar tools, while this package preserves its stricter no-raw-transcript and no-compression-provider privacy boundary.
