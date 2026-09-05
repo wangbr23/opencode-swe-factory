@@ -18,7 +18,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T10` Add the schema-versioned JSONL export command — agent, complexity: complex, depends-on: T7, T27, T32, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T11` Implement the SQLite-consistent backup snapshot manager — agent, complexity: complex, depends-on: T3, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T12` Implement atomic privacy-first hard deletion across live and managed storage — agent, complexity: complex, depends-on: T31, T32, T34, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T13` Implement the curated-document source admission policy — agent, complexity: complex, depends-on: T6, T7, T27, T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T13` Implement the curated-document source admission policy — agent, complexity: complex, depends-on: T6, T7, T27, T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T14` Implement scoped lexical lesson and document retrieval — agent, complexity: complex, depends-on: T34, T44, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T15` Integrate fail-open primary-system-block context injection with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T16` Implement the pinned local embedding artifact manager — agent, complexity: complex, depends-on: T5, T7, T26, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
