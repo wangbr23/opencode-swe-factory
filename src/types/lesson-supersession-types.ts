@@ -1,4 +1,4 @@
-import type { LessonCandidateDraft } from "./lessons.js";
+import type { LessonCandidateDraft } from "../core/lessons.js";
 
 export type LessonVersionSnapshot = Readonly<{
   lessonId: string;

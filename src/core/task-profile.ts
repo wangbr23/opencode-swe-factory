@@ -15,9 +15,9 @@ import {
   STACK_KEYWORDS,
   type ProfileTaskInput,
   type TaskProfile,
-} from "./task-profile-types.js";
+} from "../types/task-profile-types.js";
 
-export type { ProfileTaskInput, TaskProfile } from "./task-profile-types.js";
+export type { ProfileTaskInput, TaskProfile } from "../types/task-profile-types.js";
 
 export class TaskProfileInputError extends Error {}
 

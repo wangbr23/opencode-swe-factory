@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { readdirSync, renameSync, rmSync, statSync, unlinkSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
-import { MANAGED_BACKUP_PATTERN } from "./backup-types.js";
+import { MANAGED_BACKUP_PATTERN } from "../types/backup-types.js";
 import type {
   BackupScheduleState,
   BackupSnapshot,
@@ -13,7 +13,7 @@ import type {
   ManagedBackupInfo,
   RunScheduledBackupInput,
   ScheduledBackupOutcome,
-} from "./backup-types.js";
+} from "../types/backup-types.js";
 import type { ConfigV1 } from "./config.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile, resolveManagedPaths } from "./paths.js";
 import type { SqliteConnection } from "./sqlite.js";
@@ -25,7 +25,7 @@ export type {
   ManagedBackupInfo,
   RunScheduledBackupInput,
   ScheduledBackupOutcome,
-} from "./backup-types.js";
+} from "../types/backup-types.js";
 
 export class BackupSnapshotError extends Error {
   readonly backupDirectory: string;

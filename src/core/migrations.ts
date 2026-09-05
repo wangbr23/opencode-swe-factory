@@ -1,9 +1,9 @@
 import type { Database } from "bun:sqlite";
 
-import type { SchemaMigration, SchemaMigrationResult } from "./migrations-types.js";
+import type { SchemaMigration, SchemaMigrationResult } from "../types/migrations-types.js";
 import type { SqliteConnection } from "./sqlite.js";
 
-export type { SchemaMigration, SchemaMigrationResult } from "./migrations-types.js";
+export type { SchemaMigration, SchemaMigrationResult } from "../types/migrations-types.js";
 
 export class SqliteMigrationError extends Error {
   readonly databasePath: string;

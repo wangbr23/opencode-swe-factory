@@ -6,7 +6,7 @@ import {
   type TaskDomain,
   type TaskProfileSignal,
   type TaskRisk,
-} from "./task-taxonomy.js";
+} from "../core/task-taxonomy.js";
 
 export type TaskProfile = Readonly<{
   taxonomyVersion: typeof TASK_TAXONOMY_VERSION;

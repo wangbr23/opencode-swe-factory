@@ -1,14 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { isAbsolute, normalize } from "node:path";
 
-import { REMOTE_HASH_ALGORITHM, SUPPORTED_REMOTE_PROTOCOLS } from "./project-identity-types.js";
+import { REMOTE_HASH_ALGORITHM, SUPPORTED_REMOTE_PROTOCOLS } from "../types/project-identity-types.js";
 import type {
   AliasRow,
   ProjectIdentityResult,
   ProjectRow,
   ResolvedProject,
   ResolveProjectIdentityInput,
-} from "./project-identity-types.js";
+} from "../types/project-identity-types.js";
 import type { SqliteConnection } from "./sqlite.js";
 
 export type {
@@ -16,7 +16,7 @@ export type {
   ProjectResolution,
   ResolvedProject,
   ResolveProjectIdentityInput,
-} from "./project-identity-types.js";
+} from "../types/project-identity-types.js";
 
 export class ProjectIdentityError extends Error {
   readonly projectPath: string;

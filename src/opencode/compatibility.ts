@@ -2,12 +2,12 @@ import {
   OPENCODE_COMPATIBILITY_MANIFEST,
   type OpenCodeCompatibility,
   type Version,
-} from "../core/compatibility-types.js";
+} from "../types/compatibility-types.js";
 
 export {
   OPENCODE_COMPATIBILITY_MANIFEST,
   type OpenCodeCompatibility,
-} from "../core/compatibility-types.js";
+} from "../types/compatibility-types.js";
 
 export function checkOpenCodeCompatibility(version: string): OpenCodeCompatibility {
   const parsedVersion = parseVersion(version);

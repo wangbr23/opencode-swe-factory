@@ -2,14 +2,14 @@ import type {
   LessonVersionSnapshot,
   SupersedeLessonInput,
   SupersedeLessonResult,
-} from "./lesson-supersession-types.js";
+} from "../types/lesson-supersession-types.js";
 import type { SqliteConnection } from "./sqlite.js";
 
 export type {
   LessonVersionSnapshot,
   SupersedeLessonInput,
   SupersedeLessonResult,
-} from "./lesson-supersession-types.js";
+} from "../types/lesson-supersession-types.js";
 
 export class LessonSupersessionError extends Error {
   readonly lessonId: string;

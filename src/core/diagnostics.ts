@@ -35,7 +35,7 @@ import {
   type LocalDiagnostic,
   type LocalDiagnosticFileInput,
   type LocalDiagnosticInput,
-} from "./diagnostics-types.js";
+} from "../types/diagnostics-types.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile } from "./paths.js";
 import { scanTextForSecrets } from "./secrets.js";
 
@@ -51,7 +51,7 @@ export {
   type LocalDiagnostic,
   type LocalDiagnosticFileInput,
   type LocalDiagnosticInput,
-} from "./diagnostics-types.js";
+} from "../types/diagnostics-types.js";
 
 export class LocalDiagnosticReadError extends Error {
   readonly filePath: string;

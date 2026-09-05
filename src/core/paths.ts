@@ -4,10 +4,10 @@ import { homedir } from "node:os";
 import { dirname, posix as posixPath, win32 as win32Path } from "node:path";
 
 import { PACKAGE_NAME } from "./constants.js";
-import { WINDOWS_ACL_SCRIPT } from "./paths-types.js";
-import type { EnvironmentMap, ManagedPaths, ResolveManagedPathsInput, WindowsAclCommand } from "./paths-types.js";
+import { WINDOWS_ACL_SCRIPT } from "../types/paths-types.js";
+import type { EnvironmentMap, ManagedPaths, ResolveManagedPathsInput, WindowsAclCommand } from "../types/paths-types.js";
 
-export type { ManagedPaths, ResolveManagedPathsInput, WindowsAclCommand } from "./paths-types.js";
+export type { ManagedPaths, ResolveManagedPathsInput, WindowsAclCommand } from "../types/paths-types.js";
 
 function pathModuleForPlatform(platform: NodeJS.Platform) {
   return platform === "win32" ? win32Path : posixPath;

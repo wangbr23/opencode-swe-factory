@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { markVersionSuperseded } from "./lesson-supersession.js";
-import { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "./lessons-types.js";
+import { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "../types/lessons-types.js";
 import type {
   ApprovedLesson,
   LessonCandidate,
@@ -10,11 +10,11 @@ import type {
   LessonScope,
   ProposeLessonCandidateInput,
   ReviewLessonCandidateInput,
-} from "./lessons-types.js";
+} from "../types/lessons-types.js";
 import type { SecretScanDisposition, SecretScanResult } from "./secrets.js";
 import type { SqliteConnection } from "./sqlite.js";
 
-export { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "./lessons-types.js";
+export { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "../types/lessons-types.js";
 export type {
   ApprovedLesson,
   LessonCandidate,
@@ -24,7 +24,7 @@ export type {
   LessonScope,
   ProposeLessonCandidateInput,
   ReviewLessonCandidateInput,
-} from "./lessons-types.js";
+} from "../types/lessons-types.js";
 
 export class LessonCandidateError extends Error {
   readonly candidateId: string | undefined;

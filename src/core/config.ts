@@ -7,7 +7,7 @@ import {
   DEFAULT_ALLOWLIST,
   DEFAULT_CURATED_PATHS,
   DEFAULT_EMBEDDING_MODEL,
-} from "./config-types.js";
+} from "../types/config-types.js";
 import type {
   ConfigV1,
   ModelAllowlistEntry,
@@ -17,10 +17,10 @@ import type {
   RoutingPreset,
   ScopeConfig,
   ScopeToggle,
-} from "./config-types.js";
+} from "../types/config-types.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile, resolveManagedPaths } from "./paths.js";
 
-export { CONFIG_SCHEMA_VERSION } from "./config-types.js";
+export { CONFIG_SCHEMA_VERSION } from "../types/config-types.js";
 export type {
   ConfigV1,
   ModelAllowlistEntry,
@@ -29,7 +29,7 @@ export type {
   RoutingPreset,
   ScopeConfig,
   ScopeToggle,
-} from "./config-types.js";
+} from "../types/config-types.js";
 
 export class PackageConfigLoadError extends Error {
   readonly configFilePath: string;

@@ -12,7 +12,7 @@ import {
   type SecretScanDisposition,
   type SecretScanResult,
   type UnmergedFinding,
-} from "./secrets-types.js";
+} from "../types/secrets-types.js";
 
 export type {
   SecretConfidence,
@@ -20,7 +20,7 @@ export type {
   SecretFindingKind,
   SecretScanDisposition,
   SecretScanResult,
-} from "./secrets-types.js";
+} from "../types/secrets-types.js";
 
 export class SecretScanError extends Error {
   constructor() {

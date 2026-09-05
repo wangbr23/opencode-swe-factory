@@ -1,4 +1,4 @@
-import type { SecretScanResult } from "./secrets.js";
+import type { SecretScanResult } from "../core/secrets.js";
 
 export const DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS = 7;
 

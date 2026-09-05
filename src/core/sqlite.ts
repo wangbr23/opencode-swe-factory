@@ -2,9 +2,9 @@ import { Database } from "bun:sqlite";
 import { isAbsolute } from "node:path";
 
 import { ensureOwnerOnlyFile } from "./paths.js";
-import { SQLITE_BUSY_TIMEOUT_MS, type SqliteConnection } from "./sqlite-types.js";
+import { SQLITE_BUSY_TIMEOUT_MS, type SqliteConnection } from "../types/sqlite-types.js";
 
-export { SQLITE_BUSY_TIMEOUT_MS, type SqliteConnection } from "./sqlite-types.js";
+export { SQLITE_BUSY_TIMEOUT_MS, type SqliteConnection } from "../types/sqlite-types.js";
 
 export class SqliteConnectionInitializationError extends Error {
   readonly databasePath: string;
