@@ -1,8 +1,9 @@
 import { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
-import { renameSync, rmSync, statSync } from "node:fs";
+import { readdirSync, renameSync, rmSync, statSync, unlinkSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
+import type { ConfigV1 } from "./config.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile, resolveManagedPaths } from "./paths.js";
 import type { SqliteConnection } from "./sqlite.js";
 
@@ -14,6 +15,7 @@ export type BackupSnapshot = Readonly<{
 
 export type CreateBackupSnapshotInput = Readonly<{
   backupDirectory?: string;
+  now?: Date;
 }>;
 
 export class BackupSnapshotError extends Error {
@@ -53,7 +55,7 @@ export function createBackupSnapshot(
   input: CreateBackupSnapshotInput = {},
 ): BackupSnapshot {
   const backupDirectory = input.backupDirectory ?? resolveManagedPaths().backupDirectory;
-  const createdAt = new Date();
+  const createdAt = input.now ?? new Date();
   const snapshotId = `${backupFileTimestamp(createdAt)}-${randomUUID()}`;
   const backupPath = join(backupDirectory, `backup-${snapshotId}.sqlite`);
   const temporaryPath = join(backupDirectory, `.backup-${snapshotId}.tmp`);
@@ -87,4 +89,167 @@ export function createBackupSnapshot(
     }
     throw new BackupSnapshotError(backupDirectory, error, cleanupError);
   }
+}
+
+const MANAGED_BACKUP_PATTERN = /^backup-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})Z-[0-9a-f-]{36}\.sqlite$/;
+
+export class BackupScheduleError extends Error {
+  readonly backupDirectory: string;
+  readonly failedBackupPath: string;
+  readonly deletedBackupPaths: ReadonlyArray<string>;
+
+  constructor(backupDirectory: string, failedBackupPath: string, deletedBackupPaths: ReadonlyArray<string>, cause: unknown) {
+    super(`Could not apply backup retention in ${backupDirectory}.`, { cause });
+    this.name = "BackupScheduleError";
+    this.backupDirectory = backupDirectory;
+    this.failedBackupPath = failedBackupPath;
+    this.deletedBackupPaths = deletedBackupPaths;
+  }
+}
+
+export type ScheduledBackupOutcome =
+  | Readonly<{ status: "disabled" }>
+  | Readonly<{ status: "not-due"; latestBackupAt: string | null; nextDueAt: string | null }>
+  | Readonly<{
+      status: "created";
+      snapshot: BackupSnapshot;
+      deletedBackupPaths: ReadonlyArray<string>;
+    }>;
+
+export type RunScheduledBackupInput = Readonly<{
+  backups: ConfigV1["backups"];
+  backupDirectory?: string;
+  now?: Date;
+}>;
+
+type ManagedBackup = Readonly<{
+  backupPath: string;
+  createdAt: Date;
+}>;
+
+function parseManagedBackupPath(fileName: string, backupDirectory: string): ManagedBackup | undefined {
+  const match = MANAGED_BACKUP_PATTERN.exec(fileName);
+  if (!match) {
+    return undefined;
+  }
+  const [, year, month, day, hour, minute, second, millisecond] = match;
+  const isoTimestamp = `${year}-${month}-${day}T${hour}:${minute}:${second}.${millisecond}Z`;
+  const createdAt = new Date(isoTimestamp);
+  if (Number.isNaN(createdAt.getTime())) {
+    return undefined;
+  }
+  return { backupPath: join(backupDirectory, fileName), createdAt };
+}
+
+function listManagedBackups(backupDirectory: string): ManagedBackup[] {
+  let entries: string[];
+  try {
+    entries = readdirSync(backupDirectory);
+  } catch (error) {
+    if (error instanceof Error && (error as Error & { code?: string }).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+  const managed: ManagedBackup[] = [];
+  for (const entry of entries) {
+    const parsed = parseManagedBackupPath(entry, backupDirectory);
+    if (parsed) {
+      managed.push(parsed);
+    }
+  }
+  return managed.sort((first, second) =>
+    first.createdAt.getTime() !== second.createdAt.getTime()
+      ? first.createdAt.getTime() - second.createdAt.getTime()
+      : first.backupPath.localeCompare(second.backupPath),
+  );
+}
+
+function toIsoTimestamp(createdAt: Date): string {
+  return createdAt.toISOString();
+}
+
+function assertScheduleSettings(backups: ConfigV1["backups"]): void {
+  if (typeof backups.enabled !== "boolean") {
+    throw new Error("Backup settings enabled must be a boolean.");
+  }
+  for (const [label, value] of [
+    ["backups.schedule.intervalDays", backups.schedule.intervalDays],
+    ["backups.retention.maxBackups", backups.retention.maxBackups],
+  ] as const) {
+    if (value !== null && (!Number.isInteger(value) || value <= 0)) {
+      throw new Error(`${label} must be a positive integer or null.`);
+    }
+  }
+}
+
+/**
+ * Deletes the oldest managed backups beyond the retention limit. The protected
+ * backup (typically a snapshot just created) is never deleted, even when
+ * timestamp ties would otherwise sort it first.
+ */
+export function applyBackupRetention(
+  backupDirectory: string,
+  maxBackups: number,
+  protectedBackupPath?: string,
+): ReadonlyArray<string> {
+  if (!Number.isInteger(maxBackups) || maxBackups <= 0) {
+    throw new Error("Backup retention maxBackups must be a positive integer.");
+  }
+
+  const deletedBackupPaths: string[] = [];
+  const managed = listManagedBackups(backupDirectory);
+  const excessCount = managed.length - maxBackups;
+  if (excessCount <= 0) {
+    return deletedBackupPaths;
+  }
+
+  for (const candidate of managed.slice(0, excessCount)) {
+    if (candidate.backupPath === protectedBackupPath) {
+      continue;
+    }
+    try {
+      unlinkSync(candidate.backupPath);
+      deletedBackupPaths.push(candidate.backupPath);
+    } catch (error) {
+      throw new BackupScheduleError(backupDirectory, candidate.backupPath, deletedBackupPaths, error);
+    }
+  }
+  return deletedBackupPaths;
+}
+
+export function runScheduledBackup(connection: SqliteConnection, input: RunScheduledBackupInput): ScheduledBackupOutcome {
+  const { backups } = input;
+  assertScheduleSettings(backups);
+
+  if (!backups.enabled) {
+    return { status: "disabled" };
+  }
+
+  const backupDirectory = input.backupDirectory ?? resolveManagedPaths().backupDirectory;
+  if (!isAbsolute(backupDirectory)) {
+    throw new Error("Backup directory path must be absolute.");
+  }
+  const now = input.now ?? new Date();
+
+  const existing = listManagedBackups(backupDirectory);
+  const latest = existing.at(-1);
+  if (backups.schedule.intervalDays !== null && latest) {
+    const nextDueAtMs = latest.createdAt.getTime() + backups.schedule.intervalDays * 24 * 60 * 60 * 1000;
+    if (now.getTime() < nextDueAtMs) {
+      return {
+        status: "not-due",
+        latestBackupAt: toIsoTimestamp(latest.createdAt),
+        nextDueAt: toIsoTimestamp(new Date(nextDueAtMs)),
+      };
+    }
+  }
+
+  const snapshot = createBackupSnapshot(connection, { backupDirectory, now });
+  const deletedBackupPaths =
+    backups.retention.maxBackups === null
+      ? []
+      : applyBackupRetention(backupDirectory, backups.retention.maxBackups, snapshot.backupPath);
+
+  return { status: "created", snapshot, deletedBackupPaths };
 }
