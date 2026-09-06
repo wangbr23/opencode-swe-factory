@@ -1,129 +1,18 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 
 import {
-  createDefaultConfig,
-  migrateSqliteSchema,
-  openSqliteConnection,
   proposeLessonCandidate,
-  releaseSchemaMigrations,
-  resolveProjectIdentity,
   reviewLessonCandidate,
   type SecretScanResult,
-  type SqliteConnection,
 } from "../../src/core/index.js";
-import type { ToolDefinition } from "@opencode-ai/plugin";
-import type { OpenCodeCompatibility } from "../../src/types/compatibility-types.js";
-import type { PluginDependencies } from "../../src/types/plugin-types.js";
-import { composePluginHooks } from "../../src/opencode/plugin.js";
-import type {
-  ChatMessageHook,
-  SystemTransformHook,
-} from "../opencode/fixtures.js";
-
-function withPlugin(
-  run: (ctx: {
-    hooks: ReturnType<typeof composePluginHooks>;
-    connection: SqliteConnection;
-    projectId: string;
-    getTool: (name: string) => ToolDefinition;
-  }) => void | Promise<void>,
-  overrides?: {
-    compatibility?: OpenCodeCompatibility;
-  },
-): Promise<void> {
-  const directory = mkdtempSync(
-    join(tmpdir(), "opencode-swe-factory-plugin-"),
-  );
-  const connection = openSqliteConnection(join(directory, "memory.sqlite"));
-  migrateSqliteSchema(connection, releaseSchemaMigrations);
-
-  const projectResult = resolveProjectIdentity(connection, {
-    projectPath: "/test/project",
-  });
-
-  const deps: PluginDependencies = {
-    connection,
-    config: createDefaultConfig(),
-    projectId: projectResult.project.id,
-    compatibility: overrides?.compatibility ?? {
-      status: "supported",
-      version: "1.18.27",
-    },
-    diagnosticsPath: directory,
-  };
-
-  const hooks = composePluginHooks(deps);
-  const getTool = (name: string): ToolDefinition => {
-    const t = hooks.tool?.[name];
-    if (!t) throw new Error(`Tool ${name} not found`);
-    return t;
-  };
-
-  const result = run({
-    hooks,
-    connection,
-    projectId: projectResult.project.id,
-    getTool,
-  });
-  const cleanup = () => {
-    try {
-      connection.close();
-    } catch {
-      // may already be closed by dispose
-    }
-    rmSync(directory, { recursive: true, force: true });
-  };
-  if (result instanceof Promise) {
-    return result.finally(cleanup);
-  }
-  cleanup();
-  return Promise.resolve();
-}
-
-function createToolContext(sessionId: string) {
-  return {
-    sessionID: sessionId,
-    messageID: "msg-1",
-    agent: "build",
-    directory: "/test/project",
-    worktree: "/test/project",
-    abort: new AbortController().signal,
-    metadata: () => {},
-    ask: async () => {},
-  };
-}
-
-function textOf(result: Awaited<ReturnType<ToolDefinition["execute"]>>): string {
-  return typeof result === "string" ? result : result.output;
-}
-
-function chatInput(sessionId: string, text: string, messageId = "msg-1", agent = "build") {
-  return {
-    input: { sessionID: sessionId, messageID: messageId, agent },
-    output: {
-      message: {
-        id: messageId,
-        sessionID: sessionId,
-        role: "user" as const,
-        time: { created: 0 },
-        agent,
-        model: { providerID: "openai", modelID: "gpt-4.1" },
-      },
-      parts: [
-        {
-          id: "p1",
-          sessionID: sessionId,
-          messageID: messageId,
-          type: "text" as const,
-          text,
-        },
-      ],
-    },
-  };
-}
+import {
+  chatInput,
+  createToolContext,
+  textOf,
+  withPlugin,
+  type ChatMessageHook,
+  type SystemTransformHook,
+} from "./fixtures.js";
 
 // --- Initialization and structure ---
 
