@@ -12,6 +12,7 @@ export * from "./embedding-artifacts.js";
 export * from "./execution-profiles.js";
 export * from "./export.js";
 export * from "./feature-toggles.js";
+export * from "./feedback-signals.js";
 export * from "./hard-deletion.js";
 export * from "./lesson-embedding-index.js";
 export * from "./lesson-conflict-suppression.js";
