@@ -10,6 +10,7 @@ export * from "./document-index.js";
 export * from "./embedding-artifact-manifest.js";
 export * from "./embedding-artifacts.js";
 export * from "./execution-profiles.js";
+export * from "./evidence-aggregation.js";
 export * from "./export.js";
 export * from "./feature-toggles.js";
 export * from "./feedback-signals.js";
