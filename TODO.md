@@ -74,7 +74,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T66` Implement bounded low-risk exploration with budget and disclosure rules — agent, complexity: complex, depends-on: T23, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T67` Add the OpenCode routing contract suite — agent, complexity: complex, depends-on: T47, T66, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T68` Implement redacted local diagnostics and health reporting without telemetry — agent, complexity: simple, depends-on: T7, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T69` Add CLI configuration and feature-toggle controls — agent, complexity: simple, depends-on: T5, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T69` Add CLI configuration and feature-toggle controls — agent, complexity: simple, depends-on: T5, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T70` Add OpenCode feature-toggle and private-mode tools — agent, complexity: simple, depends-on: T4, T5, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T71` Compose plugin initialization, registrations, scheduling hooks, and fail-open fallback — agent, complexity: complex, depends-on: T4, T11, T15, T38, T53, T68, T70, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T72` Schedule backup, maintenance, candidate-cleanup, and successful-method background work — agent, complexity: complex, depends-on: T24, T40, T42, T59, T71, T87, design: docs/designs/2026-09-03-coding-memory-model-router.md

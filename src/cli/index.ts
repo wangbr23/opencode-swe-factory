@@ -7,6 +7,7 @@ import {
   applyBackupRetention,
   createBackupSnapshot,
   detectLessonDuplicatesAndConflicts,
+  featureTogglesForScope,
   getBackupScheduleState,
   inspectLesson,
   listManagedBackups,
@@ -18,6 +19,7 @@ import {
   resolveManagedPaths,
   retrieveConfirmedLessonsLexically,
   reviewLessonCandidate,
+  savePackageConfig,
   type LessonCandidateReviewOutcome,
   type LessonOverlapMatch,
 } from "../core/index.js";
@@ -30,12 +32,16 @@ export function getCliHelp(): string {
   return `${createCoreContext().packageName} CLI
 
 Commands:
-  backup          Create a managed backup snapshot now
-  backup-status   Show managed backup schedule, retention, and snapshots
-  review          List pending lesson candidates
-  review <id>     Review a specific candidate with overlap analysis
-  search <query>  Search confirmed lessons by keyword
-  lesson <id>     Inspect a specific confirmed lesson
+  backup                    Create a managed backup snapshot now
+  backup-status             Show managed backup schedule, retention, and snapshots
+  config                    Show current configuration
+  config get <path>         Read a configuration value by dot-path
+  config set <path> <value> Set a configuration value by dot-path
+  toggles                   Show resolved feature toggles per scope
+  review                    List pending lesson candidates
+  review <id>               Review a specific candidate with overlap analysis
+  search <query>            Search confirmed lessons by keyword
+  lesson <id>               Inspect a specific confirmed lesson
 
 Options:
   --database <path>          Path to the SQLite database file
@@ -83,7 +89,7 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
   }
 
   const command = positional[0];
-  const multiWordCommands = new Set(["search"]);
+  const multiWordCommands = new Set(["search", "config"]);
   const commandArg = multiWordCommands.has(command ?? "")
     ? positional.slice(1).join(" ") || undefined
     : positional[1];
@@ -322,6 +328,107 @@ function runLessonCommand(parsed: ParsedArgs): void {
   }
 }
 
+function resolveConfigPathInput(parsed: ParsedArgs) {
+  return parsed.configFilePath === undefined ? {} : { configFilePath: parsed.configFilePath };
+}
+
+function getByDotPath(obj: unknown, path: string): unknown {
+  const segments = path.split(".");
+  let current: unknown = obj;
+  for (const segment of segments) {
+    if (typeof current !== "object" || current === null || Array.isArray(current)) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
+function setByDotPath(obj: Record<string, unknown>, path: string, value: unknown): void {
+  const segments = path.split(".");
+  let current: Record<string, unknown> = obj;
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const segment = segments[i]!;
+    const next = current[segment];
+    if (typeof next !== "object" || next === null || Array.isArray(next)) {
+      throw new Error(`Path "${segments.slice(0, i + 1).join(".")}" is not an object.`);
+    }
+    current = next as Record<string, unknown>;
+  }
+  const lastSegment = segments[segments.length - 1]!;
+  if (!(lastSegment in current)) {
+    throw new Error(`Unknown config path "${path}".`);
+  }
+  current[lastSegment] = value;
+}
+
+function parseConfigValue(raw: string): unknown {
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  if (raw === "null") return null;
+  const asNumber = Number(raw);
+  if (!Number.isNaN(asNumber) && raw.length > 0) return asNumber;
+  return raw;
+}
+
+function runConfigCommand(parsed: ParsedArgs): void {
+  const configPathInput = resolveConfigPathInput(parsed);
+
+  if (!parsed.commandArg) {
+    const config = loadPackageConfig(configPathInput);
+    console.log(JSON.stringify(config, null, 2));
+    return;
+  }
+
+  const parts = parsed.commandArg.split(" ");
+  const subcommand = parts[0];
+
+  if (subcommand === "get") {
+    const keyPath = parts[1];
+    if (!keyPath || parts.length !== 2) {
+      throw new Error("Usage: config get <path>");
+    }
+    const config = loadPackageConfig(configPathInput);
+    const value = getByDotPath(config, keyPath);
+    if (value === undefined) {
+      throw new Error(`Unknown config path "${keyPath}".`);
+    }
+    console.log(typeof value === "object" ? JSON.stringify(value, null, 2) : String(value));
+    return;
+  }
+
+  if (subcommand === "set") {
+    const keyPath = parts[1];
+    const rawValue = parts[2];
+    if (!keyPath || rawValue === undefined || parts.length !== 3) {
+      throw new Error("Usage: config set <path> <value>");
+    }
+    const config = loadPackageConfig(configPathInput);
+    const mutable = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
+    setByDotPath(mutable, keyPath, parseConfigValue(rawValue));
+    savePackageConfig(mutable, configPathInput);
+    console.log(`Set ${keyPath} = ${rawValue}`);
+    return;
+  }
+
+  throw new Error(`Unknown config subcommand "${subcommand}". Use: config, config get <path>, config set <path> <value>.`);
+}
+
+function runTogglesCommand(parsed: ParsedArgs): void {
+  const config = loadPackageConfig(resolveConfigPathInput(parsed));
+
+  console.log(`Private mode: ${config.privateMode.enabled ? "on" : "off"}\n`);
+
+  for (const scope of ["global", "project", "session"] as const) {
+    const toggles = featureTogglesForScope(config, scope);
+    console.log(`${scope}:`);
+    console.log(`  retrieval:      ${toggles.retrieval ? "enabled" : "disabled"}`);
+    console.log(`  recording:      ${toggles.recording ? "enabled" : "disabled"}`);
+    console.log(`  modelTelemetry: ${toggles.modelTelemetry ? "enabled" : "disabled"}`);
+    console.log(`  routing:        ${toggles.routing ? "enabled" : "disabled"}`);
+  }
+}
+
 export function main(
   args: ReadonlyArray<string> = Bun.argv.slice(2),
   options?: Readonly<{ readLine?: (question: string) => string | null }>,
@@ -343,6 +450,10 @@ export function main(
       } else {
         runReviewListCommand(parsed);
       }
+    } else if (parsed.command === "config") {
+      runConfigCommand(parsed);
+    } else if (parsed.command === "toggles") {
+      runTogglesCommand(parsed);
     } else if (parsed.command === "search") {
       runSearchCommand(parsed);
     } else if (parsed.command === "lesson") {
