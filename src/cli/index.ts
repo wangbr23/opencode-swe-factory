@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 
 import { statSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import {
   applyBackupRetention,
   createBackupSnapshot,
   createHealthReport,
   detectLessonDuplicatesAndConflicts,
+  exportDatabaseToJsonl,
   featureTogglesForScope,
   getBackupScheduleState,
   inspectLesson,
@@ -54,6 +55,7 @@ Commands:
   lesson <id>               Inspect a specific confirmed lesson
   supersede <id>            Replace a lesson's active version with new content
   relink <project-id>       Change a project's path or remote association
+  export <path>             Export package-owned data as schema-versioned JSONL
   status                    Show diagnostics, paths, and compatibility status
 
 Options:
@@ -610,10 +612,39 @@ function runTogglesCommand(parsed: ParsedArgs): void {
   }
 }
 
-export function main(
+async function runExportCommand(parsed: ParsedArgs): Promise<void> {
+  const outputArg = parsed.commandArg;
+  if (!outputArg) {
+    throw new Error("Usage: export <output-path>");
+  }
+  const outputPath = resolve(outputArg);
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    const migration = migrateSqliteSchema(connection, releaseSchemaMigrations);
+    if (migration.status === "newer-schema") {
+      console.error(
+        `Warning: database schema v${migration.schemaVersion} is newer than supported v${migration.supportedSchemaVersion}; exporting known tables only.`,
+      );
+    }
+    const result = await exportDatabaseToJsonl(connection, outputPath);
+    for (const table of result.tables) {
+      const redacted = table.redactedFieldCount > 0 ? `, ${table.redactedFieldCount} field(s) redacted` : "";
+      console.log(`  ${table.table}: ${table.rowCount} row(s)${redacted}`);
+    }
+    const totalRedactions = result.tables.reduce((sum, table) => sum + table.redactedFieldCount, 0);
+    if (totalRedactions > 0) {
+      console.log(`Redacted ${totalRedactions} field(s) with potential secrets.`);
+    }
+    console.log(`Exported schema v${result.sqliteSchemaVersion} data to ${result.outputPath}.`);
+  } finally {
+    connection.close();
+  }
+}
+
+export async function main(
   args: ReadonlyArray<string> = Bun.argv.slice(2),
   options?: Readonly<{ readLine?: (question: string) => string | null }>,
-): number {
+): Promise<number> {
   if (args.includes("--help") || args.length === 0) {
     console.log(getCliHelp());
     return 0;
@@ -643,6 +674,8 @@ export function main(
       runLessonCommand(parsed);
     } else if (parsed.command === "relink") {
       runRelinkCommand(parsed);
+    } else if (parsed.command === "export") {
+      await runExportCommand(parsed);
     } else if (parsed.command === "status") {
       runStatusCommand(parsed);
     } else {
@@ -658,5 +691,11 @@ export function main(
 }
 
 if (import.meta.main) {
-  process.exit(main());
+  main().then(
+    (code) => process.exit(code),
+    (error) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    },
+  );
 }

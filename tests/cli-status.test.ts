@@ -10,10 +10,10 @@ import {
 } from "../src/core/index.js";
 import { main } from "../src/cli/index.js";
 
-function withTestDir(run: (dir: string) => void): void {
+async function withTestDir(run: (dir: string) => void | Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-cli-status-"));
   try {
-    run(directory);
+    await run(directory);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -38,8 +38,8 @@ function captureConsole() {
   };
 }
 
-test("status shows paths and health with existing database", () => {
-  withTestDir((dir) => {
+test("status shows paths and health with existing database", async () => {
+  await withTestDir(async (dir) => {
     const dbPath = join(dir, "memory.sqlite");
     const connection = openSqliteConnection(dbPath);
     migrateSqliteSchema(connection, releaseSchemaMigrations);
@@ -47,7 +47,7 @@ test("status shows paths and health with existing database", () => {
 
     const console_ = captureConsole();
     try {
-      const code = main(["status", "--database", dbPath]);
+      const code = await main(["status", "--database", dbPath]);
       expect(code).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("Database:");
@@ -61,13 +61,13 @@ test("status shows paths and health with existing database", () => {
   });
 });
 
-test("status handles non-existent database", () => {
-  withTestDir((dir) => {
+test("status handles non-existent database", async () => {
+  await withTestDir(async (dir) => {
     const dbPath = join(dir, "nonexistent.sqlite");
 
     const console_ = captureConsole();
     try {
-      const code = main(["status", "--database", dbPath]);
+      const code = await main(["status", "--database", dbPath]);
       expect(code).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("Status: not created yet");
@@ -78,13 +78,13 @@ test("status handles non-existent database", () => {
   });
 });
 
-test("status shows OpenCode compatibility manifest", () => {
-  withTestDir((dir) => {
+test("status shows OpenCode compatibility manifest", async () => {
+  await withTestDir(async (dir) => {
     const dbPath = join(dir, "nonexistent.sqlite");
 
     const console_ = captureConsole();
     try {
-      expect(main(["status", "--database", dbPath])).toBe(0);
+      expect(await main(["status", "--database", dbPath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("OpenCode compatibility:");
       expect(output).toContain("Minimum version: 1.18.27");
@@ -95,13 +95,13 @@ test("status shows OpenCode compatibility manifest", () => {
   });
 });
 
-test("status shows paths section", () => {
-  withTestDir((dir) => {
+test("status shows paths section", async () => {
+  await withTestDir(async (dir) => {
     const dbPath = join(dir, "memory.sqlite");
 
     const console_ = captureConsole();
     try {
-      expect(main(["status", "--database", dbPath])).toBe(0);
+      expect(await main(["status", "--database", dbPath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("Paths:");
       expect(output).toContain("Config:");
@@ -114,13 +114,13 @@ test("status shows paths section", () => {
   });
 });
 
-test("status shows no diagnostics when none recorded", () => {
-  withTestDir((dir) => {
+test("status shows no diagnostics when none recorded", async () => {
+  await withTestDir(async (dir) => {
     const dbPath = join(dir, "nonexistent.sqlite");
 
     const console_ = captureConsole();
     try {
-      expect(main(["status", "--database", dbPath])).toBe(0);
+      expect(await main(["status", "--database", dbPath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("No diagnostics recorded.");
     } finally {
@@ -129,8 +129,8 @@ test("status shows no diagnostics when none recorded", () => {
   });
 });
 
-test("status shows database component in health checks", () => {
-  withTestDir((dir) => {
+test("status shows database component in health checks", async () => {
+  await withTestDir(async (dir) => {
     const dbPath = join(dir, "memory.sqlite");
     const connection = openSqliteConnection(dbPath);
     migrateSqliteSchema(connection, releaseSchemaMigrations);
@@ -138,7 +138,7 @@ test("status shows database component in health checks", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["status", "--database", dbPath])).toBe(0);
+      expect(await main(["status", "--database", dbPath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("database: healthy");
     } finally {

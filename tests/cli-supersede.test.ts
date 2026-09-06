@@ -14,14 +14,14 @@ import {
 } from "../src/core/index.js";
 import { main } from "../src/cli/index.js";
 
-function withTestDatabase(run: (dbPath: string) => void): void {
+async function withTestDatabase(run: (dbPath: string) => void | Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-cli-supersede-"));
   const dbPath = join(directory, "memory.sqlite");
   const connection = openSqliteConnection(dbPath);
   migrateSqliteSchema(connection, releaseSchemaMigrations);
   connection.close();
   try {
-    run(dbPath);
+    await run(dbPath);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -79,12 +79,12 @@ function captureConsole() {
   };
 }
 
-test("supersede replaces active version with new content", () => {
-  withTestDatabase((dbPath) => {
+test("supersede replaces active version with new content", async () => {
+  await withTestDatabase(async (dbPath) => {
     const lessonId = createApprovedLesson(dbPath);
     const console_ = captureConsole();
     try {
-      const code = main([
+      const code = await main([
         "supersede", lessonId,
         "--title", "Updated title",
         "--body", "Updated body content",
@@ -104,12 +104,12 @@ test("supersede replaces active version with new content", () => {
   });
 });
 
-test("supersede updates the lesson so inspection shows new content", () => {
-  withTestDatabase((dbPath) => {
+test("supersede updates the lesson so inspection shows new content", async () => {
+  await withTestDatabase(async (dbPath) => {
     const lessonId = createApprovedLesson(dbPath);
     const c1 = captureConsole();
     try {
-      main([
+      await main([
         "supersede", lessonId,
         "--title", "Updated title",
         "--body", "Updated body",
@@ -122,7 +122,7 @@ test("supersede updates the lesson so inspection shows new content", () => {
 
     const c2 = captureConsole();
     try {
-      expect(main(["lesson", lessonId, "--database", dbPath])).toBe(0);
+      expect(await main(["lesson", lessonId, "--database", dbPath])).toBe(0);
       const output = c2.logged.join("\n");
       expect(output).toContain("Versions:   2");
       expect(output).toContain("Active version (v2)");
@@ -134,11 +134,11 @@ test("supersede updates the lesson so inspection shows new content", () => {
   });
 });
 
-test("supersede fails for nonexistent lesson", () => {
-  withTestDatabase((dbPath) => {
+test("supersede fails for nonexistent lesson", async () => {
+  await withTestDatabase(async (dbPath) => {
     const console_ = captureConsole();
     try {
-      const code = main([
+      const code = await main([
         "supersede", "nonexistent-id",
         "--title", "T",
         "--body", "B",
@@ -153,11 +153,11 @@ test("supersede fails for nonexistent lesson", () => {
   });
 });
 
-test("supersede fails without lesson id", () => {
-  withTestDatabase((dbPath) => {
+test("supersede fails without lesson id", async () => {
+  await withTestDatabase(async (dbPath) => {
     const console_ = captureConsole();
     try {
-      const code = main([
+      const code = await main([
         "supersede",
         "--title", "T",
         "--body", "B",
@@ -172,12 +172,12 @@ test("supersede fails without lesson id", () => {
   });
 });
 
-test("supersede fails without --title", () => {
-  withTestDatabase((dbPath) => {
+test("supersede fails without --title", async () => {
+  await withTestDatabase(async (dbPath) => {
     const lessonId = createApprovedLesson(dbPath);
     const console_ = captureConsole();
     try {
-      const code = main([
+      const code = await main([
         "supersede", lessonId,
         "--body", "B",
         "--rationale", "R",
@@ -191,12 +191,12 @@ test("supersede fails without --title", () => {
   });
 });
 
-test("supersede fails without --body", () => {
-  withTestDatabase((dbPath) => {
+test("supersede fails without --body", async () => {
+  await withTestDatabase(async (dbPath) => {
     const lessonId = createApprovedLesson(dbPath);
     const console_ = captureConsole();
     try {
-      const code = main([
+      const code = await main([
         "supersede", lessonId,
         "--title", "T",
         "--rationale", "R",
@@ -210,12 +210,12 @@ test("supersede fails without --body", () => {
   });
 });
 
-test("supersede fails without --rationale", () => {
-  withTestDatabase((dbPath) => {
+test("supersede fails without --rationale", async () => {
+  await withTestDatabase(async (dbPath) => {
     const lessonId = createApprovedLesson(dbPath);
     const console_ = captureConsole();
     try {
-      const code = main([
+      const code = await main([
         "supersede", lessonId,
         "--title", "T",
         "--body", "B",
@@ -229,13 +229,13 @@ test("supersede fails without --rationale", () => {
   });
 });
 
-test("supersede can be applied multiple times", () => {
-  withTestDatabase((dbPath) => {
+test("supersede can be applied multiple times", async () => {
+  await withTestDatabase(async (dbPath) => {
     const lessonId = createApprovedLesson(dbPath);
 
     const c1 = captureConsole();
     try {
-      expect(main([
+      expect(await main([
         "supersede", lessonId,
         "--title", "V2",
         "--body", "Body v2",
@@ -248,7 +248,7 @@ test("supersede can be applied multiple times", () => {
 
     const c2 = captureConsole();
     try {
-      expect(main([
+      expect(await main([
         "supersede", lessonId,
         "--title", "V3",
         "--body", "Body v3",
@@ -264,13 +264,13 @@ test("supersede can be applied multiple times", () => {
   });
 });
 
-test("supersede preserves applicability and provenance from current version", () => {
-  withTestDatabase((dbPath) => {
+test("supersede preserves applicability and provenance from current version", async () => {
+  await withTestDatabase(async (dbPath) => {
     const lessonId = createApprovedLesson(dbPath);
 
     const c1 = captureConsole();
     try {
-      main([
+      await main([
         "supersede", lessonId,
         "--title", "New",
         "--body", "New body",
@@ -283,7 +283,7 @@ test("supersede preserves applicability and provenance from current version", ()
 
     const c2 = captureConsole();
     try {
-      expect(main(["lesson", lessonId, "--database", dbPath])).toBe(0);
+      expect(await main(["lesson", lessonId, "--database", dbPath])).toBe(0);
       const output = c2.logged.join("\n");
       expect(output).toContain("Title:     New");
       expect(output).toContain("Body:      New body");

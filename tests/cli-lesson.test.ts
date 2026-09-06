@@ -20,13 +20,13 @@ const clearScan: SecretScanResult = {
   redactedText: "",
 };
 
-function withTestDatabase(run: (databasePath: string, connection: SqliteConnection) => void): void {
+async function withTestDatabase(run: (databasePath: string, connection: SqliteConnection) => void | Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-cli-lesson-"));
   const databasePath = join(directory, "memory.sqlite");
   const connection = openSqliteConnection(databasePath);
   migrateSqliteSchema(connection, releaseSchemaMigrations);
   try {
-    run(databasePath, connection);
+    await run(databasePath, connection);
   } finally {
     connection.close();
     rmSync(directory, { recursive: true, force: true });
@@ -79,8 +79,8 @@ function insertApprovedLesson(
   return reviewLessonCandidate(connection, { candidateId: candidate.id, decision: "approve" });
 }
 
-test("search returns matching lessons", () => {
-  withTestDatabase((databasePath, connection) => {
+test("search returns matching lessons", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     insertApprovedLesson(connection, {
       title: "Always run tests before committing",
       body: "Execute the full test suite before any git commit to catch regressions early",
@@ -91,7 +91,7 @@ test("search returns matching lessons", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["search", "tests", "committing", "--database", databasePath])).toBe(0);
+      expect(await main(["search", "tests", "committing", "--database", databasePath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("Found 1 lesson(s)");
       expect(output).toContain("Always run tests before committing");
@@ -102,13 +102,13 @@ test("search returns matching lessons", () => {
   });
 });
 
-test("search shows empty message when no matches", () => {
-  withTestDatabase((databasePath, connection) => {
+test("search shows empty message when no matches", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["search", "nonexistent", "--database", databasePath])).toBe(0);
+      expect(await main(["search", "nonexistent", "--database", databasePath])).toBe(0);
       expect(console_.logged.join("\n")).toContain("No matching lessons found");
     } finally {
       console_.restore();
@@ -116,8 +116,8 @@ test("search shows empty message when no matches", () => {
   });
 });
 
-test("search joins multi-word queries", () => {
-  withTestDatabase((databasePath, connection) => {
+test("search joins multi-word queries", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     insertApprovedLesson(connection, {
       title: "Database migration strategy",
       body: "Always create reversible database migrations with up and down methods",
@@ -128,7 +128,7 @@ test("search joins multi-word queries", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["search", "database", "migration", "strategy", "--database", databasePath])).toBe(0);
+      expect(await main(["search", "database", "migration", "strategy", "--database", databasePath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("Found 1 lesson(s)");
       expect(output).toContain("Database migration strategy");
@@ -138,8 +138,8 @@ test("search joins multi-word queries", () => {
   });
 });
 
-test("search filters by --project", () => {
-  withTestDatabase((databasePath, connection) => {
+test("search filters by --project", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     insertApprovedLesson(connection, {
       title: "Use strict mode in TypeScript",
       body: "Enable strict mode in tsconfig for better type safety",
@@ -156,7 +156,7 @@ test("search filters by --project", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["search", "strict", "mode", "--project", "project-alpha", "--database", databasePath])).toBe(0);
+      expect(await main(["search", "strict", "mode", "--project", "project-alpha", "--database", databasePath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("project:project-alpha");
       expect(output).not.toContain("project-beta");
@@ -166,13 +166,13 @@ test("search filters by --project", () => {
   });
 });
 
-test("search fails without query argument", () => {
-  withTestDatabase((databasePath, connection) => {
+test("search fails without query argument", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["search", "--database", databasePath])).toBe(1);
+      expect(await main(["search", "--database", databasePath])).toBe(1);
       expect(console_.errors.join("\n")).toContain("Usage: search <query>");
     } finally {
       console_.restore();
@@ -180,8 +180,8 @@ test("search fails without query argument", () => {
   });
 });
 
-test("lesson inspects a confirmed lesson", () => {
-  withTestDatabase((databasePath, connection) => {
+test("lesson inspects a confirmed lesson", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const outcome = insertApprovedLesson(connection, {
       title: "Pin dependency versions",
       body: "Always pin exact versions in package.json to avoid surprise breakage",
@@ -193,7 +193,7 @@ test("lesson inspects a confirmed lesson", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["lesson", lessonId, "--database", databasePath])).toBe(0);
+      expect(await main(["lesson", lessonId, "--database", databasePath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain(`Lesson ${lessonId}`);
       expect(output).toContain("Scope:      global");
@@ -207,8 +207,8 @@ test("lesson inspects a confirmed lesson", () => {
   });
 });
 
-test("lesson shows project scope with project ID", () => {
-  withTestDatabase((databasePath, connection) => {
+test("lesson shows project scope with project ID", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const outcome = insertApprovedLesson(connection, {
       title: "Use Bun for testing",
       body: "Use bun:test as the test runner for this project",
@@ -220,7 +220,7 @@ test("lesson shows project scope with project ID", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["lesson", lessonId, "--database", databasePath])).toBe(0);
+      expect(await main(["lesson", lessonId, "--database", databasePath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("Scope:      project (my-project)");
     } finally {
@@ -229,13 +229,13 @@ test("lesson shows project scope with project ID", () => {
   });
 });
 
-test("lesson fails for nonexistent ID", () => {
-  withTestDatabase((databasePath, connection) => {
+test("lesson fails for nonexistent ID", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["lesson", "nonexistent-id", "--database", databasePath])).toBe(1);
+      expect(await main(["lesson", "nonexistent-id", "--database", databasePath])).toBe(1);
       expect(console_.errors.join("\n")).toContain("not found");
     } finally {
       console_.restore();
@@ -243,13 +243,13 @@ test("lesson fails for nonexistent ID", () => {
   });
 });
 
-test("lesson fails without ID argument", () => {
-  withTestDatabase((databasePath, connection) => {
+test("lesson fails without ID argument", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["lesson", "--database", databasePath])).toBe(1);
+      expect(await main(["lesson", "--database", databasePath])).toBe(1);
       expect(console_.errors.join("\n")).toContain("Usage: lesson <lesson-id>");
     } finally {
       console_.restore();
@@ -257,8 +257,8 @@ test("lesson fails without ID argument", () => {
   });
 });
 
-test("search displays version number for each result", () => {
-  withTestDatabase((databasePath, connection) => {
+test("search displays version number for each result", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     insertApprovedLesson(connection, {
       title: "Use semantic versioning",
       body: "Follow semver conventions for all package releases",
@@ -269,7 +269,7 @@ test("search displays version number for each result", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["search", "semantic", "versioning", "--database", databasePath])).toBe(0);
+      expect(await main(["search", "semantic", "versioning", "--database", databasePath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("v1");
     } finally {

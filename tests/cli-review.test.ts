@@ -33,13 +33,13 @@ const acknowledgmentScan: SecretScanResult = {
   redactedText: "[REDACTED] rest",
 };
 
-function withTestDatabase(run: (databasePath: string, connection: SqliteConnection) => void): void {
+async function withTestDatabase(run: (databasePath: string, connection: SqliteConnection) => void | Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-cli-review-"));
   const databasePath = join(directory, "memory.sqlite");
   const connection = openSqliteConnection(databasePath);
   migrateSqliteSchema(connection, releaseSchemaMigrations);
   try {
-    run(databasePath, connection);
+    await run(databasePath, connection);
   } finally {
     connection.close();
     rmSync(directory, { recursive: true, force: true });
@@ -118,14 +118,14 @@ function insertApprovedLesson(
   return reviewLessonCandidate(connection, { candidateId: candidate.id, decision: "approve" });
 }
 
-test("review lists pending candidates", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review lists pending candidates", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection);
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", "--database", databasePath])).toBe(0);
+      expect(await main(["review", "--database", databasePath])).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("Pending lesson candidates (1)");
       expect(output).toContain(candidate.id);
@@ -136,13 +136,13 @@ test("review lists pending candidates", () => {
   });
 });
 
-test("review shows empty message when no candidates exist", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review shows empty message when no candidates exist", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", "--database", databasePath])).toBe(0);
+      expect(await main(["review", "--database", databasePath])).toBe(0);
       expect(console_.logged.join("\n")).toContain("No pending lesson candidates");
     } finally {
       console_.restore();
@@ -150,14 +150,14 @@ test("review shows empty message when no candidates exist", () => {
   });
 });
 
-test("review candidate shows details and processes approval", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate shows details and processes approval", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection);
     connection.close();
 
     const console_ = captureConsole();
     try {
-      const result = main(["review", candidate.id, "--database", databasePath], {
+      const result = await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => "a",
       });
       expect(result).toBe(0);
@@ -173,14 +173,14 @@ test("review candidate shows details and processes approval", () => {
   });
 });
 
-test("review candidate processes rejection", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate processes rejection", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection);
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", candidate.id, "--database", databasePath], {
+      expect(await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => "r",
       })).toBe(0);
       const output = console_.logged.join("\n");
@@ -192,14 +192,14 @@ test("review candidate processes rejection", () => {
   });
 });
 
-test("review candidate processes deferral", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate processes deferral", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection);
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", candidate.id, "--database", databasePath], {
+      expect(await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => "d",
       })).toBe(0);
       const output = console_.logged.join("\n");
@@ -211,14 +211,14 @@ test("review candidate processes deferral", () => {
   });
 });
 
-test("review candidate handles quit without acting", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate handles quit without acting", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection);
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", candidate.id, "--database", databasePath], {
+      expect(await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => "q",
       })).toBe(0);
       const output = console_.logged.join("\n");
@@ -231,8 +231,8 @@ test("review candidate handles quit without acting", () => {
   });
 });
 
-test("review candidate shows overlapping lessons", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate shows overlapping lessons", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     insertApprovedLesson(connection, {
       title: "Run tests before commits",
       body: "Always run bun test before committing changes to the repository",
@@ -248,7 +248,7 @@ test("review candidate shows overlapping lessons", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", candidate.id, "--database", databasePath], {
+      expect(await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => "q",
       })).toBe(0);
       const output = console_.logged.join("\n");
@@ -260,14 +260,14 @@ test("review candidate shows overlapping lessons", () => {
   });
 });
 
-test("review candidate shows no overlaps when none exist", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate shows no overlaps when none exist", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection);
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", candidate.id, "--database", databasePath], {
+      expect(await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => "q",
       })).toBe(0);
       expect(console_.logged.join("\n")).toContain("No overlapping lessons found");
@@ -277,14 +277,14 @@ test("review candidate shows no overlaps when none exist", () => {
   });
 });
 
-test("review candidate warns about secret acknowledgment requirement", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate warns about secret acknowledgment requirement", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection, { secretScan: acknowledgmentScan });
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", candidate.id, "--database", databasePath], {
+      expect(await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => "q",
       })).toBe(0);
       const output = console_.logged.join("\n");
@@ -296,14 +296,14 @@ test("review candidate warns about secret acknowledgment requirement", () => {
   });
 });
 
-test("review candidate approval with --acknowledge-secret-risk succeeds", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate approval with --acknowledge-secret-risk succeeds", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection, { secretScan: acknowledgmentScan });
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(
+      expect(await main(
         ["review", candidate.id, "--database", databasePath, "--acknowledge-secret-risk"],
         { readLine: () => "a" },
       )).toBe(0);
@@ -314,13 +314,13 @@ test("review candidate approval with --acknowledge-secret-risk succeeds", () => 
   });
 });
 
-test("review candidate fails for nonexistent ID", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review candidate fails for nonexistent ID", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", "nonexistent-id", "--database", databasePath], {
+      expect(await main(["review", "nonexistent-id", "--database", databasePath], {
         readLine: () => "a",
       })).toBe(1);
       expect(console_.errors.join("\n")).toContain("not found or expired");
@@ -330,14 +330,14 @@ test("review candidate fails for nonexistent ID", () => {
   });
 });
 
-test("review handles null readline as quit", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review handles null readline as quit", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection);
     connection.close();
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", candidate.id, "--database", databasePath], {
+      expect(await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => null,
       })).toBe(0);
       expect(console_.logged.join("\n")).toContain("Skipped");
@@ -347,8 +347,8 @@ test("review handles null readline as quit", () => {
   });
 });
 
-test("review retries on invalid input before accepting valid decision", () => {
-  withTestDatabase((databasePath, connection) => {
+test("review retries on invalid input before accepting valid decision", async () => {
+  await withTestDatabase(async (databasePath, connection) => {
     const candidate = insertCandidate(connection);
     connection.close();
 
@@ -357,7 +357,7 @@ test("review retries on invalid input before accepting valid decision", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["review", candidate.id, "--database", databasePath], {
+      expect(await main(["review", candidate.id, "--database", databasePath], {
         readLine: () => responses[callIndex++] ?? null,
       })).toBe(0);
       const output = console_.logged.join("\n");

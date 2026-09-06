@@ -12,13 +12,13 @@ import {
 } from "../src/core/index.js";
 import { main } from "../src/cli/index.js";
 
-function withTestDatabase(run: (dbPath: string, connection: SqliteConnection) => void): void {
+async function withTestDatabase(run: (dbPath: string, connection: SqliteConnection) => void | Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-cli-relink-"));
   const dbPath = join(directory, "memory.sqlite");
   const connection = openSqliteConnection(dbPath);
   migrateSqliteSchema(connection, releaseSchemaMigrations);
   try {
-    run(dbPath, connection);
+    await run(dbPath, connection);
   } finally {
     connection.close();
     rmSync(directory, { recursive: true, force: true });
@@ -44,8 +44,8 @@ function captureConsole() {
   };
 }
 
-test("relink updates a project path", () => {
-  withTestDatabase((dbPath, connection) => {
+test("relink updates a project path", async () => {
+  await withTestDatabase(async (dbPath, connection) => {
     const { project } = resolveProjectIdentity(connection, {
       projectPath: "/repos/my-project",
     });
@@ -53,7 +53,7 @@ test("relink updates a project path", () => {
 
     const console_ = captureConsole();
     try {
-      const code = main(["relink", project.id, "--path", "/repos/new-location", "--database", dbPath]);
+      const code = await main(["relink", project.id, "--path", "/repos/new-location", "--database", dbPath]);
       expect(code).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("/repos/my-project -> /repos/new-location");
@@ -64,8 +64,8 @@ test("relink updates a project path", () => {
   });
 });
 
-test("relink updates a project remote", () => {
-  withTestDatabase((dbPath, connection) => {
+test("relink updates a project remote", async () => {
+  await withTestDatabase(async (dbPath, connection) => {
     const { project } = resolveProjectIdentity(connection, {
       projectPath: "/repos/my-project",
       remoteUrl: "git@github.com:owner/repo.git",
@@ -74,7 +74,7 @@ test("relink updates a project remote", () => {
 
     const console_ = captureConsole();
     try {
-      const code = main(["relink", project.id, "--remote", "git@github.com:owner/new-repo.git", "--database", dbPath]);
+      const code = await main(["relink", project.id, "--remote", "git@github.com:owner/new-repo.git", "--database", dbPath]);
       expect(code).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain("Remote hash:");
@@ -85,8 +85,8 @@ test("relink updates a project remote", () => {
   });
 });
 
-test("relink updates both path and remote", () => {
-  withTestDatabase((dbPath, connection) => {
+test("relink updates both path and remote", async () => {
+  await withTestDatabase(async (dbPath, connection) => {
     const { project } = resolveProjectIdentity(connection, {
       projectPath: "/repos/old-project",
       remoteUrl: "git@github.com:owner/old-repo.git",
@@ -95,7 +95,7 @@ test("relink updates both path and remote", () => {
 
     const console_ = captureConsole();
     try {
-      const code = main([
+      const code = await main([
         "relink", project.id,
         "--path", "/repos/new-project",
         "--remote", "git@github.com:owner/new-repo.git",
@@ -112,13 +112,13 @@ test("relink updates both path and remote", () => {
   });
 });
 
-test("relink fails without project id", () => {
-  withTestDatabase((dbPath, connection) => {
+test("relink fails without project id", async () => {
+  await withTestDatabase(async (dbPath, connection) => {
     connection.close();
 
     const console_ = captureConsole();
     try {
-      const code = main(["relink", "--path", "/repos/new", "--database", dbPath]);
+      const code = await main(["relink", "--path", "/repos/new", "--database", dbPath]);
       expect(code).toBe(1);
       expect(console_.errors.join("\n")).toContain("Usage: relink");
     } finally {
@@ -127,8 +127,8 @@ test("relink fails without project id", () => {
   });
 });
 
-test("relink fails without --path or --remote", () => {
-  withTestDatabase((dbPath, connection) => {
+test("relink fails without --path or --remote", async () => {
+  await withTestDatabase(async (dbPath, connection) => {
     const { project } = resolveProjectIdentity(connection, {
       projectPath: "/repos/my-project",
     });
@@ -136,7 +136,7 @@ test("relink fails without --path or --remote", () => {
 
     const console_ = captureConsole();
     try {
-      const code = main(["relink", project.id, "--database", dbPath]);
+      const code = await main(["relink", project.id, "--database", dbPath]);
       expect(code).toBe(1);
       expect(console_.errors.join("\n")).toContain("--path or --remote is required");
     } finally {
@@ -145,13 +145,13 @@ test("relink fails without --path or --remote", () => {
   });
 });
 
-test("relink fails for nonexistent project", () => {
-  withTestDatabase((dbPath, connection) => {
+test("relink fails for nonexistent project", async () => {
+  await withTestDatabase(async (dbPath, connection) => {
     connection.close();
 
     const console_ = captureConsole();
     try {
-      const code = main(["relink", "nonexistent-id", "--path", "/repos/new", "--database", dbPath]);
+      const code = await main(["relink", "nonexistent-id", "--path", "/repos/new", "--database", dbPath]);
       expect(code).toBe(1);
       expect(console_.errors.join("\n")).toContain("not found");
     } finally {
@@ -160,8 +160,8 @@ test("relink fails for nonexistent project", () => {
   });
 });
 
-test("relink fails when path is used by another project", () => {
-  withTestDatabase((dbPath, connection) => {
+test("relink fails when path is used by another project", async () => {
+  await withTestDatabase(async (dbPath, connection) => {
     const { project: project1 } = resolveProjectIdentity(connection, {
       projectPath: "/repos/project-one",
     });
@@ -172,7 +172,7 @@ test("relink fails when path is used by another project", () => {
 
     const console_ = captureConsole();
     try {
-      const code = main(["relink", project1.id, "--path", "/repos/project-two", "--database", dbPath]);
+      const code = await main(["relink", project1.id, "--path", "/repos/project-two", "--database", dbPath]);
       expect(code).toBe(1);
       expect(console_.errors.join("\n")).toContain("already used");
     } finally {
@@ -181,8 +181,8 @@ test("relink fails when path is used by another project", () => {
   });
 });
 
-test("relink to same path is a no-op", () => {
-  withTestDatabase((dbPath, connection) => {
+test("relink to same path is a no-op", async () => {
+  await withTestDatabase(async (dbPath, connection) => {
     const { project } = resolveProjectIdentity(connection, {
       projectPath: "/repos/my-project",
     });
@@ -190,7 +190,7 @@ test("relink to same path is a no-op", () => {
 
     const console_ = captureConsole();
     try {
-      const code = main(["relink", project.id, "--path", "/repos/my-project", "--database", dbPath]);
+      const code = await main(["relink", project.id, "--path", "/repos/my-project", "--database", dbPath]);
       expect(code).toBe(0);
       const output = console_.logged.join("\n");
       expect(output).toContain(`Relinked project ${project.id}`);

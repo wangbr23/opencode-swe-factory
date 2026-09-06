@@ -6,10 +6,10 @@ import { join } from "node:path";
 import { main } from "../src/cli/index.js";
 import { createBackupSnapshot, openSqliteConnection } from "../src/core/index.js";
 
-function withTemporaryDirectory(run: (directory: string) => void): void {
+async function withTemporaryDirectory(run: (directory: string) => void | Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-cli-backup-"));
   try {
-    run(directory);
+    await run(directory);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -34,8 +34,8 @@ function captureConsole() {
   };
 }
 
-test("backup command creates a snapshot and backup-status reports it", () => {
-  withTemporaryDirectory((directory) => {
+test("backup command creates a snapshot and backup-status reports it", async () => {
+  await withTemporaryDirectory(async (directory) => {
     const databasePath = join(directory, "memory.sqlite");
     const backupDirectory = join(directory, "backups");
     const configFilePath = join(directory, "config.json");
@@ -47,14 +47,14 @@ test("backup command creates a snapshot and backup-status reports it", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["backup", "--database", databasePath, "--backup-dir", backupDirectory, "--config", configFilePath])).toBe(0);
+      expect(await main(["backup", "--database", databasePath, "--backup-dir", backupDirectory, "--config", configFilePath])).toBe(0);
       expect(console_.logged.join("\n")).toMatch(/Created backup .*backups.*\.sqlite/);
       expect(readdirSync(backupDirectory)).toHaveLength(1);
 
-      const statusOutput = (() => {
+      const statusOutput = await (async () => {
         console_.logged.length = 0;
         expect(
-          main(["backup-status", "--backup-dir", backupDirectory, "--config", configFilePath]),
+          await main(["backup-status", "--backup-dir", backupDirectory, "--config", configFilePath]),
         ).toBe(0);
         return console_.logged.join("\n");
       })();
@@ -69,8 +69,8 @@ test("backup command creates a snapshot and backup-status reports it", () => {
   });
 });
 
-test("backup-status reports no snapshots for an empty backup directory", () => {
-  withTemporaryDirectory((directory) => {
+test("backup-status reports no snapshots for an empty backup directory", async () => {
+  await withTemporaryDirectory(async (directory) => {
     const configFilePath = join(directory, "config.json");
     writeFileSync(configFilePath, "{}");
     const backupDirectory = join(directory, "backups");
@@ -78,7 +78,7 @@ test("backup-status reports no snapshots for an empty backup directory", () => {
 
     const console_ = captureConsole();
     try {
-      expect(main(["backup-status", "--backup-dir", backupDirectory, "--config", configFilePath])).toBe(0);
+      expect(await main(["backup-status", "--backup-dir", backupDirectory, "--config", configFilePath])).toBe(0);
       const statusOutput = console_.logged.join("\n");
       expect(statusOutput).toContain("Latest backup: none");
       expect(statusOutput).toContain("Next due: now");
@@ -89,15 +89,15 @@ test("backup-status reports no snapshots for an empty backup directory", () => {
   });
 });
 
-test("backup command fails cleanly for unknown options and unknown commands", () => {
-  withTemporaryDirectory((directory) => {
+test("backup command fails cleanly for unknown options and unknown commands", async () => {
+  await withTemporaryDirectory(async (directory) => {
     const console_ = captureConsole();
     try {
-      expect(main(["backup", "--nope", join(directory, "backups")])).toBe(1);
+      expect(await main(["backup", "--nope", join(directory, "backups")])).toBe(1);
       expect(console_.errors.join("\n")).toContain("Command failed");
 
       console_.errors.length = 0;
-      expect(main(["frobnicate"])).toBe(1);
+      expect(await main(["frobnicate"])).toBe(1);
       expect(console_.errors.join("\n")).toContain("Unknown command: frobnicate.");
     } finally {
       console_.restore();
