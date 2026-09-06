@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   applyBackupRetention,
   createBackupSnapshot,
+  createHealthReport,
   detectLessonDuplicatesAndConflicts,
   featureTogglesForScope,
   getBackupScheduleState,
@@ -15,16 +16,23 @@ import {
   loadPackageConfig,
   migrateSqliteSchema,
   openSqliteConnection,
+  readLocalDiagnostics,
   releaseSchemaMigrations,
   resolveManagedPaths,
   retrieveConfirmedLessonsLexically,
   reviewLessonCandidate,
   savePackageConfig,
   supersedeLesson,
+  type HealthCheck,
+  type LocalDiagnostic,
   type LessonCandidateReviewOutcome,
   type LessonOverlapMatch,
 } from "../core/index.js";
 import { createCoreContext } from "../core/index.js";
+import {
+  checkOpenCodeCompatibility,
+  OPENCODE_COMPATIBILITY_MANIFEST,
+} from "../opencode/index.js";
 
 const DEFAULT_DATABASE_FILE_NAME = "memory.sqlite";
 const GLOBAL_DETECTION_PROJECT_ID = "__global_detection__";
@@ -44,6 +52,7 @@ Commands:
   search <query>            Search confirmed lessons by keyword
   lesson <id>               Inspect a specific confirmed lesson
   supersede <id>            Replace a lesson's active version with new content
+  status                    Show diagnostics, paths, and compatibility status
 
 Options:
   --database <path>          Path to the SQLite database file
@@ -384,6 +393,81 @@ function runSupersedeCommand(parsed: ParsedArgs): void {
   }
 }
 
+function runStatusCommand(parsed: ParsedArgs): void {
+  const context = createCoreContext();
+  const paths = resolveManagedPaths();
+  const dbPath = resolveDatabasePath(parsed.databasePath);
+
+  console.log(`${context.packageName}`);
+  console.log(`\nPaths:`);
+  console.log(`  Database:  ${dbPath}`);
+  console.log(`  Config:    ${paths.configFilePath}`);
+  console.log(`  Data:      ${paths.dataDirectory}`);
+  console.log(`  Cache:     ${paths.cacheDirectory}`);
+  console.log(`  Backups:   ${paths.backupDirectory}`);
+
+  let dbExists = false;
+  try {
+    statSync(dbPath);
+    dbExists = true;
+  } catch {}
+
+  const checks: HealthCheck[] = [];
+
+  console.log(`\nDatabase:`);
+  if (dbExists) {
+    console.log(`  Status: exists`);
+    try {
+      const connection = openSqliteConnection(dbPath);
+      try {
+        migrateSqliteSchema(connection, releaseSchemaMigrations);
+        console.log(`  Migrations: up to date`);
+        checks.push({ component: "database", status: "healthy" });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.log(`  Migrations: error — ${msg}`);
+        checks.push({ component: "database", status: "degraded", reason: "migration-error" });
+      } finally {
+        connection.close();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.log(`  Connection: error — ${msg}`);
+      checks.push({ component: "database", status: "unavailable", reason: "connection-error" });
+    }
+  } else {
+    console.log(`  Status: not created yet`);
+    checks.push({ component: "database", status: "healthy", reason: "not-created" });
+  }
+
+  console.log(`\nOpenCode compatibility:`);
+  console.log(`  Minimum version: ${OPENCODE_COMPATIBILITY_MANIFEST.minimumVersion}`);
+  console.log(`  Tested versions: ${OPENCODE_COMPATIBILITY_MANIFEST.testedVersions.join(", ")}`);
+
+  const diagnosticsPath = join(paths.dataDirectory, "diagnostics.jsonl");
+  let diagnosticEntries: ReadonlyArray<LocalDiagnostic>;
+  try {
+    diagnosticEntries = readLocalDiagnostics(diagnosticsPath);
+  } catch {
+    diagnosticEntries = [];
+  }
+
+  const report = createHealthReport(checks, diagnosticEntries);
+  console.log(`\nHealth: ${report.status}`);
+  for (const check of report.checks) {
+    const reason = check.reason ? ` (${check.reason})` : "";
+    console.log(`  ${check.component}: ${check.status}${reason}`);
+  }
+  if (diagnosticEntries.length > 0) {
+    console.log(`\nRecent diagnostics (${diagnosticEntries.length}):`);
+    for (const entry of diagnosticEntries.slice(-5)) {
+      console.log(`  [${entry.severity}] ${entry.timestamp} ${entry.component}/${entry.code}: ${entry.summary}`);
+    }
+  } else {
+    console.log(`\nNo diagnostics recorded.`);
+  }
+}
+
 function resolveConfigPathInput(parsed: ParsedArgs) {
   return parsed.configFilePath === undefined ? {} : { configFilePath: parsed.configFilePath };
 }
@@ -516,6 +600,8 @@ export function main(
       runSearchCommand(parsed);
     } else if (parsed.command === "lesson") {
       runLessonCommand(parsed);
+    } else if (parsed.command === "status") {
+      runStatusCommand(parsed);
     } else {
       console.error(`Unknown command: ${parsed.command ?? "(none)"}.`);
       return 1;
