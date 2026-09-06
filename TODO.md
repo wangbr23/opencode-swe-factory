@@ -24,7 +24,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T16` Implement the pinned local embedding artifact manager — agent, complexity: complex, depends-on: T5, T7, T26, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T17` Implement exact semantic retrieval over scoped confirmed-lesson vectors — agent, complexity: complex, depends-on: T14, T49, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T18` Implement the versioned task taxonomy and deterministic profiler — agent, complexity: complex, depends-on: T2, T6, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T19` Capture assistant-completion execution profiles and provider outcomes — agent, complexity: complex, depends-on: T32, T53, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T19` Capture assistant-completion execution profiles and provider outcomes — agent, complexity: complex, depends-on: T32, T53, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T20` Implement decayed evidence aggregation with profile backoff and uncertainty — agent, complexity: complex, depends-on: T18, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T21` Integrate recommendation mode and compact routing receipts with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, T53, T62, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T22` Approve post-V1 automatic-routing confidence, utility, latency, and exploration thresholds — manual, depends-on: T63, T65, T93, design: docs/designs/2026-09-05-governed-memory-router-v1.md

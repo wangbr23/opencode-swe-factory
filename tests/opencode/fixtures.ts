@@ -21,6 +21,8 @@ export type ChatMessageHookOutput = Parameters<ChatMessageHook>[1];
 export type SystemTransformHook = NonNullable<Hooks["experimental.chat.system.transform"]>;
 export type SystemTransformHookInput = Parameters<SystemTransformHook>[0];
 export type SystemTransformHookOutput = Parameters<SystemTransformHook>[1];
+export type EventHook = NonNullable<Hooks["event"]>;
+export type EventHookEvent = Parameters<EventHook>[0]["event"];
 
 export function createChatMessageFixture(): Readonly<{
   input: ChatMessageHookInput;
@@ -55,6 +57,53 @@ export function createChatMessageFixture(): Readonly<{
 
 export function createSystemTransformOutputFixture(): SystemTransformHookOutput {
   return { system: ["existing primary system block"] };
+}
+
+export function createAssistantCompletionEvent(
+  overrides?: Partial<{
+    messageId: string;
+    sessionId: string;
+    completedAtMs: number | undefined;
+    finish: string | undefined;
+    errorName: string | undefined;
+  }>,
+): EventHookEvent {
+  const messageId = overrides?.messageId ?? "assistant-1";
+  const sessionId = overrides?.sessionId ?? "session-1";
+  const finish = overrides && "finish" in overrides ? overrides.finish : "stop";
+  const info = {
+    id: messageId,
+    sessionID: sessionId,
+    role: "assistant" as const,
+    time: {
+      created: Date.parse("2026-09-06T12:00:00.000Z"),
+      ...(overrides?.completedAtMs !== undefined
+        ? { completed: overrides.completedAtMs }
+        : {}),
+    },
+    parentID: "message-1",
+    modelID: "gpt-4.1",
+    providerID: "openai",
+    mode: "build",
+    path: { cwd: "/test/project", root: "/test/project" },
+    cost: 0.02,
+    tokens: {
+      input: 120,
+      output: 80,
+      reasoning: 15,
+      cache: { read: 30, write: 6 },
+    },
+    ...(finish !== undefined ? { finish } : {}),
+    ...(overrides?.errorName !== undefined
+      ? {
+          error: {
+            name: "UnknownError" as const,
+            data: { message: overrides.errorName },
+          },
+        }
+      : {}),
+  };
+  return { type: "message.updated", properties: { info } };
 }
 
 export function createSystemTransformInputFixture(

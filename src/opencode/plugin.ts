@@ -26,6 +26,10 @@ import {
   createInjectionState,
   prepareInjection,
 } from "./context-injection.js";
+import {
+  createExecutionCaptureState,
+  handleAssistantCompletion,
+} from "./execution-capture.js";
 import { handleProposeLesson, handleCommitLesson } from "./lesson-tools.js";
 import { formatApprovalCard } from "./approval-flow.js";
 import {
@@ -106,6 +110,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
 
   const injectionState = createInjectionState();
   const taskBoundaryState = createTaskBoundaryState();
+  const executionCaptureState = createExecutionCaptureState();
   const sessionTogglesMap = new Map<string, OpenCodeSessionToggles>();
 
   const hooks: Hooks = {
@@ -159,6 +164,61 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
         applyInjection(injectionState, input.sessionID, output.system);
       } catch {
         // fail-open
+      }
+    },
+
+    event: async ({ event }) => {
+      try {
+        if (event.type !== "message.updated") return;
+        const info = event.properties.info;
+        if (info.role !== "assistant") return;
+        if (info.time.completed === undefined) return;
+
+        const session = getOrCreateSessionToggles(sessionTogglesMap, info.sessionID);
+        const toggles = resolveToggles(config, session);
+
+        handleAssistantCompletion(
+          executionCaptureState,
+          taskBoundaryState,
+          connection,
+          toggles,
+          {
+            sessionId: info.sessionID,
+            messageId: info.id,
+            agent: info.mode,
+            provider: info.providerID,
+            model: info.modelID,
+            costUsd: info.cost,
+            tokens: {
+              input: info.tokens.input,
+              output: info.tokens.output,
+              reasoning: info.tokens.reasoning,
+              cacheRead: info.tokens.cache.read,
+              cacheWrite: info.tokens.cache.write,
+            },
+            startedAtMs: info.time.created,
+            completedAtMs: info.time.completed,
+            ...(info.finish !== undefined ? { finish: info.finish } : {}),
+            ...(info.error
+              ? {
+                  error: {
+                    name: info.error.name,
+                    ...(typeof (info.error.data as { statusCode?: unknown }).statusCode ===
+                    "number"
+                      ? {
+                          code: String(
+                            (info.error.data as { statusCode: number }).statusCode,
+                          ),
+                        }
+                      : {}),
+                  },
+                }
+              : {}),
+            softwareVersions: { opencode: compatibility.version },
+          },
+        );
+      } catch {
+        // fail-open: hook errors must not break OpenCode
       }
     },
 
