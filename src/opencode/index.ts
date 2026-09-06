@@ -1,5 +1,6 @@
 import { createCoreContext, type CoreContext } from "../core/index.js";
 
+export * from "./approval-flow.js";
 export * from "./compatibility.js";
 export * from "./context-injection.js";
 export * from "./health.js";
