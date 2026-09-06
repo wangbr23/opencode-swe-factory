@@ -115,6 +115,162 @@ test("retrieves matching global and current-project lessons without crossing pro
   });
 });
 
+test("project-scoped lessons rank above global lessons at equal relevance", () => {
+  withDatabase((connection) => {
+    insertProject(connection, "project-a");
+    insertLesson(connection, {
+      id: "global-deploy",
+      scope: "global",
+      projectId: null,
+      title: "Deploy checklist",
+      body: "Verify deployment steps before release.",
+    });
+    insertLesson(connection, {
+      id: "project-deploy",
+      scope: "project",
+      projectId: "project-a",
+      title: "Deploy checklist",
+      body: "Verify deployment steps before release.",
+    });
+
+    const results = retrieveConfirmedLessonsLexically(connection, {
+      projectId: "project-a",
+      query: "deploy checklist",
+    });
+
+    expect(results.map((r) => r.lessonId)).toEqual(["project-deploy", "global-deploy"]);
+    expect(results[0]!.lexicalRank).toBe(1);
+    expect(results[1]!.lexicalRank).toBe(2);
+  });
+});
+
+test("project-scoped lesson ranks first even when global has stronger BM25 match", () => {
+  withDatabase((connection) => {
+    insertProject(connection, "project-a");
+    insertLesson(connection, {
+      id: "global-migration",
+      scope: "global",
+      projectId: null,
+      title: "Migration migration migration",
+      body: "Migration migration migration migration migration.",
+    });
+    insertLesson(connection, {
+      id: "project-migration",
+      scope: "project",
+      projectId: "project-a",
+      title: "Run migration",
+      body: "Execute the migration script.",
+    });
+
+    const results = retrieveConfirmedLessonsLexically(connection, {
+      projectId: "project-a",
+      query: "migration",
+    });
+
+    expect(results[0]!.lessonId).toBe("project-migration");
+    expect(results[0]!.scope).toBe("project");
+    expect(results[1]!.lessonId).toBe("global-migration");
+    expect(results[1]!.scope).toBe("global");
+  });
+});
+
+test("global lessons sort among themselves by BM25 when no project lessons match", () => {
+  withDatabase((connection) => {
+    insertLesson(connection, {
+      id: "global-lint-a",
+      scope: "global",
+      projectId: null,
+      title: "Lint configuration",
+      body: "Set up lint rules.",
+    });
+    insertLesson(connection, {
+      id: "global-lint-b",
+      scope: "global",
+      projectId: null,
+      title: "Lint lint lint",
+      body: "Lint lint lint lint lint.",
+    });
+
+    const results = retrieveConfirmedLessonsLexically(connection, {
+      projectId: "project-a",
+      query: "lint",
+    });
+
+    expect(results).toHaveLength(2);
+    expect(results.every((r) => r.scope === "global")).toBe(true);
+  });
+});
+
+test("project lessons sort among themselves by BM25 within project tier", () => {
+  withDatabase((connection) => {
+    insertProject(connection, "project-a");
+    insertLesson(connection, {
+      id: "project-test-brief",
+      scope: "project",
+      projectId: "project-a",
+      title: "Test setup",
+      body: "Run the test suite.",
+    });
+    insertLesson(connection, {
+      id: "project-test-heavy",
+      scope: "project",
+      projectId: "project-a",
+      title: "Test test test test",
+      body: "Test test test test test.",
+    });
+    insertLesson(connection, {
+      id: "global-test",
+      scope: "global",
+      projectId: null,
+      title: "Test practices",
+      body: "Follow testing best practices.",
+    });
+
+    const results = retrieveConfirmedLessonsLexically(connection, {
+      projectId: "project-a",
+      query: "test",
+    });
+
+    const projectResults = results.filter((r) => r.scope === "project");
+    const globalResults = results.filter((r) => r.scope === "global");
+
+    expect(projectResults.length).toBe(2);
+    expect(globalResults.length).toBe(1);
+    expect(results.indexOf(projectResults[0]!)).toBeLessThan(results.indexOf(globalResults[0]!));
+    expect(results.indexOf(projectResults[1]!)).toBeLessThan(results.indexOf(globalResults[0]!));
+  });
+});
+
+test("limit applies after project-over-global ordering", () => {
+  withDatabase((connection) => {
+    insertProject(connection, "project-a");
+    insertLesson(connection, {
+      id: "global-build",
+      scope: "global",
+      projectId: null,
+      title: "Build process",
+      body: "Run the build step.",
+    });
+    insertLesson(connection, {
+      id: "project-build",
+      scope: "project",
+      projectId: "project-a",
+      title: "Build process",
+      body: "Run the project build step.",
+    });
+
+    const results = retrieveConfirmedLessonsLexically(connection, {
+      projectId: "project-a",
+      query: "build",
+      limit: 1,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]!.lessonId).toBe("project-build");
+    expect(results[0]!.scope).toBe("project");
+  });
+});
+
 test("returns only the active unsuperseded version", () => {
   withDatabase((connection) => {
     insertProject(connection, "project-a");

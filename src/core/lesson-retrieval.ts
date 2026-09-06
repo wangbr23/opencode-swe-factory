@@ -133,7 +133,10 @@ export function retrieveConfirmedLessonsLexically(
           (lessons.scope = 'project' AND lessons.project_id = ?)
           OR (lessons.scope = 'global' AND lessons.project_id IS NULL)
         )
-      ORDER BY lexical_score ASC, lesson_versions_fts.lesson_id ASC
+      ORDER BY
+        CASE WHEN lessons.scope = 'project' THEN 0 ELSE 1 END ASC,
+        lexical_score ASC,
+        lesson_versions_fts.lesson_id ASC
       LIMIT ?`,
     )
     .all(ftsQuery, projectId, limit);
