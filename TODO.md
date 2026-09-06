@@ -38,7 +38,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T30` Add the lesson, immutable-version, and pending-candidate schema migration — agent, complexity: complex, depends-on: T29, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T31` Add the document-source, chunk, FTS, and embedding schema migration — agent, complexity: complex, depends-on: T30, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T32` Add the task, execution-profile, and outcome-signal schema migration — agent, complexity: complex, depends-on: T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T33` Add the CLI project-relink command — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T33` Add the CLI project-relink command — agent, complexity: complex, depends-on: T6, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T34` Implement immutable lesson supersession and active-version invariants — agent, complexity: complex, depends-on: T8, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T35` Implement duplicate and conflict detection for lesson candidates — agent, complexity: complex, depends-on: T14, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T36` Add the CLI lesson search and inspection command — agent, complexity: simple, depends-on: T14, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md

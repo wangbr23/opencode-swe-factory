@@ -6,6 +6,8 @@ import type {
   AliasRow,
   ProjectIdentityResult,
   ProjectRow,
+  RelinkProjectInput,
+  RelinkProjectResult,
   ResolvedProject,
   ResolveProjectIdentityInput,
 } from "../types/project-identity-types.js";
@@ -14,6 +16,8 @@ import type { SqliteConnection } from "./sqlite.js";
 export type {
   ProjectIdentityResult,
   ProjectResolution,
+  RelinkProjectInput,
+  RelinkProjectResult,
   ResolvedProject,
   ResolveProjectIdentityInput,
 } from "../types/project-identity-types.js";
@@ -269,5 +273,79 @@ export function resolveProjectIdentity(connection: SqliteConnection, input: Reso
       insertRemoteAlias(connection, projectId, normalizedRemote, now);
     }
     return { project: toResolvedProject(projectRow), resolution: "created" };
+  })();
+}
+
+/**
+ * Explicitly changes a project's primary path and/or remote association.
+ * This is the deliberate operation referenced when resolveProjectIdentity
+ * refuses a conflict. Updates the primary row, adds new path/remote aliases,
+ * and returns the before/after state.
+ */
+export function relinkProject(connection: SqliteConnection, input: RelinkProjectInput): RelinkProjectResult {
+  if (!input.newPath && !input.newRemoteUrl) {
+    throw new ProjectIdentityError("", "At least one of newPath or newRemoteUrl is required.");
+  }
+
+  const now = (input.now ?? new Date()).toISOString();
+
+  return connection.database.transaction((): RelinkProjectResult => {
+    const project = queryProjectById(connection, input.projectId);
+    if (!project) {
+      throw new ProjectIdentityError(input.projectId, `Project ${input.projectId} not found.`);
+    }
+
+    let newPath = project.path;
+    let newRemoteHash = project.remote_hash;
+
+    if (input.newPath) {
+      const canonicalPath = normalizeProjectPath(input.newPath);
+      const existing = queryProjectByPath(connection, canonicalPath);
+      if (existing && existing.id !== project.id) {
+        throw new ProjectIdentityConflictError(
+          canonicalPath,
+          `Path ${canonicalPath} is already used by project ${existing.id}.`,
+          { path: canonicalPath },
+        );
+      }
+      connection.database.run("UPDATE projects SET path = ?, updated_at = ? WHERE id = ?", [
+        canonicalPath,
+        now,
+        project.id,
+      ]);
+      insertPathAlias(connection, project.id, canonicalPath, now);
+      newPath = canonicalPath;
+    }
+
+    if (input.newRemoteUrl) {
+      const normalizedRemote = normalizeVcsRemote(input.newRemoteUrl);
+      if (!normalizedRemote) {
+        throw new ProjectIdentityError(input.newRemoteUrl, `Could not normalize remote URL "${input.newRemoteUrl}".`);
+      }
+      const remoteHash = hashVcsRemote(normalizedRemote);
+      const existing = queryProjectByRemoteHash(connection, remoteHash);
+      if (existing && existing.id !== project.id) {
+        throw new ProjectIdentityConflictError(
+          project.path,
+          `Remote is already used by project ${existing.id}.`,
+          { remote: normalizedRemote },
+        );
+      }
+      connection.database.run("UPDATE projects SET remote_hash = ?, updated_at = ? WHERE id = ?", [
+        remoteHash,
+        now,
+        project.id,
+      ]);
+      insertRemoteAlias(connection, project.id, normalizedRemote, now);
+      newRemoteHash = remoteHash;
+    }
+
+    return {
+      projectId: project.id,
+      previousPath: project.path,
+      path: newPath,
+      previousRemoteHash: project.remote_hash,
+      remoteHash: newRemoteHash,
+    };
   })();
 }

@@ -22,6 +22,7 @@ import {
   retrieveConfirmedLessonsLexically,
   reviewLessonCandidate,
   savePackageConfig,
+  relinkProject,
   supersedeLesson,
   type HealthCheck,
   type LocalDiagnostic,
@@ -52,6 +53,7 @@ Commands:
   search <query>            Search confirmed lessons by keyword
   lesson <id>               Inspect a specific confirmed lesson
   supersede <id>            Replace a lesson's active version with new content
+  relink <project-id>       Change a project's path or remote association
   status                    Show diagnostics, paths, and compatibility status
 
 Options:
@@ -59,6 +61,8 @@ Options:
   --backup-dir <dir>         Override the managed backup directory
   --config <path>            Override the package configuration file
   --project <id>             Filter search results to a specific project
+  --path <path>              New path for relink
+  --remote <url>             New remote URL for relink
   --title <text>             New title for supersede
   --body <text>              New body for supersede
   --rationale <text>         New rationale for supersede
@@ -73,6 +77,8 @@ type ParsedArgs = Readonly<{
   backupDirectory: string | undefined;
   configFilePath: string | undefined;
   projectId: string | undefined;
+  newPath: string | undefined;
+  newRemote: string | undefined;
   title: string | undefined;
   body: string | undefined;
   rationale: string | undefined;
@@ -86,7 +92,7 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]!;
-    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--title" || arg === "--body" || arg === "--rationale") {
+    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--path" || arg === "--remote" || arg === "--title" || arg === "--body" || arg === "--rationale") {
       const value = args[index + 1];
       if (value === undefined) {
         throw new Error(`Option ${arg} requires a value.`);
@@ -122,6 +128,8 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
     backupDirectory: values.get("--backup-dir"),
     configFilePath: values.get("--config"),
     projectId: values.get("--project"),
+    newPath: values.get("--path"),
+    newRemote: values.get("--remote"),
     title: values.get("--title"),
     body: values.get("--body"),
     rationale: values.get("--rationale"),
@@ -393,6 +401,39 @@ function runSupersedeCommand(parsed: ParsedArgs): void {
   }
 }
 
+function runRelinkCommand(parsed: ParsedArgs): void {
+  const projectId = parsed.commandArg;
+  if (!projectId) {
+    throw new Error("Usage: relink <project-id> --path <new-path> [--remote <new-remote>]");
+  }
+  if (!parsed.newPath && !parsed.newRemote) {
+    throw new Error("At least one of --path or --remote is required for relink.");
+  }
+
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const relinkInput = {
+      projectId,
+      ...(parsed.newPath ? { newPath: parsed.newPath } : {}),
+      ...(parsed.newRemote ? { newRemoteUrl: parsed.newRemote } : {}),
+    };
+    const result = relinkProject(connection, relinkInput);
+
+    if (result.previousPath !== result.path) {
+      console.log(`Path: ${result.previousPath} -> ${result.path}`);
+    }
+    if (result.previousRemoteHash !== result.remoteHash) {
+      const prev = result.previousRemoteHash ?? "(none)";
+      const next = result.remoteHash ?? "(none)";
+      console.log(`Remote hash: ${prev} -> ${next}`);
+    }
+    console.log(`Relinked project ${result.projectId}.`);
+  } finally {
+    connection.close();
+  }
+}
+
 function runStatusCommand(parsed: ParsedArgs): void {
   const context = createCoreContext();
   const paths = resolveManagedPaths();
@@ -600,6 +641,8 @@ export function main(
       runSearchCommand(parsed);
     } else if (parsed.command === "lesson") {
       runLessonCommand(parsed);
+    } else if (parsed.command === "relink") {
+      runRelinkCommand(parsed);
     } else if (parsed.command === "status") {
       runStatusCommand(parsed);
     } else {

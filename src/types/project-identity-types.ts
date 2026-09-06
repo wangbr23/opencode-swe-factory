@@ -33,3 +33,18 @@ export type ProjectRow = Readonly<{
 export type AliasRow = Readonly<{
   project_id: string;
 }>;
+
+export type RelinkProjectInput = Readonly<{
+  projectId: string;
+  newPath?: string;
+  newRemoteUrl?: string;
+  now?: Date;
+}>;
+
+export type RelinkProjectResult = Readonly<{
+  projectId: string;
+  previousPath: string;
+  path: string;
+  previousRemoteHash: string | null;
+  remoteHash: string | null;
+}>;
