@@ -189,12 +189,10 @@ test("second queued message in the same session suppresses both injections, and 
 test("pending injection for one session never reaches or is consumed by another session", () =>
   withPlugin(async ({ hooks, connection, projectId }) => {
     await confirmLesson(connection, projectId, SQL_LESSON);
-    // Global scope: a project scope holds a single active lesson, so the
-    // second fixture lesson is confirmed globally to keep both active.
     await confirmLesson(connection, projectId, {
       title: "Run the test suite",
       body: "Run the full test suite before every commit to catch regressions",
-    }, "global");
+    });
 
     await sendMessage(hooks, "sql-session", SQL_QUERY, "msg-1");
     await sendMessage(

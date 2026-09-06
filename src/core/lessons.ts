@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import { markVersionSuperseded } from "./lesson-supersession.js";
 import { DEFAULT_CANDIDATE_REVIEW_WINDOW_DAYS } from "../types/lessons-types.js";
 import type {
   ApprovedLesson,
@@ -63,14 +62,6 @@ type CandidateRow = Readonly<{
   draft_json: string;
   created_at: string;
   expires_at: string;
-}>;
-
-type LessonRow = Readonly<{
-  id: string;
-  scope: LessonScope;
-  project_id: string | null;
-  active_version: number | null;
-  created_at: string;
 }>;
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -148,83 +139,39 @@ function assertNotExpired(row: CandidateRow, now: Date): void {
   }
 }
 
-function nextLessonVersion(connection: SqliteConnection, lessonId: string): number {
-  const row = connection.database
-    .query<{ max_version: number | null }, [string]>("SELECT max(version) AS max_version FROM lesson_versions WHERE lesson_id = ?")
-    .get(lessonId);
-  return (row?.max_version ?? 0) + 1;
-}
-
 function commitApprovedVersion(
   connection: SqliteConnection,
   row: CandidateRow,
   draft: LessonCandidateDraft,
   approvedAt: string,
 ): ApprovedLesson {
-  const existing = (
-    connection.database
-      .query<LessonRow, [string | null, LessonScope]>(
-        "SELECT id, scope, project_id, active_version, created_at FROM lessons WHERE project_id IS ? AND scope = ?",
-      )
-      .get(row.project_id, row.scope) ?? undefined
-  ) as LessonRow | undefined;
-
-  let lessonId: string;
-  let version: number;
-  let activeVersion: number;
-  let createdAt: string;
-
-  if (existing) {
-    lessonId = existing.id;
-    createdAt = existing.created_at;
-    version = nextLessonVersion(connection, lessonId);
-    activeVersion = version;
-    connection.database.run(
-      "INSERT INTO lesson_versions (lesson_id, version, title, body, rationale, applicability_json, provenance_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [
-        lessonId,
-        version,
-        draft.title,
-        draft.body,
-        draft.rationale,
-        JSON.stringify(draft.applicability),
-        JSON.stringify(draft.provenance),
-        approvedAt,
-      ],
-    );
-    if (existing.active_version !== null) {
-      markVersionSuperseded(connection, lessonId, existing.active_version, activeVersion);
-    }
-    connection.database.run("UPDATE lessons SET active_version = ?, updated_at = ? WHERE id = ?", [
-      activeVersion,
-      approvedAt,
+  const lessonId = randomUUID();
+  const version = 1;
+  connection.database.run(
+    "INSERT INTO lessons (id, project_id, scope, active_version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+    [lessonId, row.project_id, row.scope, version, approvedAt, approvedAt],
+  );
+  connection.database.run(
+    "INSERT INTO lesson_versions (lesson_id, version, title, body, rationale, applicability_json, provenance_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    [
       lessonId,
-    ]);
-  } else {
-    lessonId = randomUUID();
-    version = 1;
-    activeVersion = version;
-    createdAt = approvedAt;
-    connection.database.run(
-      "INSERT INTO lessons (id, project_id, scope, active_version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-      [lessonId, row.project_id, row.scope, activeVersion, approvedAt, approvedAt],
-    );
-    connection.database.run(
-      "INSERT INTO lesson_versions (lesson_id, version, title, body, rationale, applicability_json, provenance_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [
-        lessonId,
-        version,
-        draft.title,
-        draft.body,
-        draft.rationale,
-        JSON.stringify(draft.applicability),
-        JSON.stringify(draft.provenance),
-        approvedAt,
-      ],
-    );
-  }
-
-  return { lessonId, version, scope: row.scope, projectId: row.project_id, activeVersion, createdAt };
+      version,
+      draft.title,
+      draft.body,
+      draft.rationale,
+      JSON.stringify(draft.applicability),
+      JSON.stringify(draft.provenance),
+      approvedAt,
+    ],
+  );
+  return {
+    lessonId,
+    version,
+    scope: row.scope,
+    projectId: row.project_id,
+    activeVersion: version,
+    createdAt: approvedAt,
+  };
 }
 
 /**
@@ -278,7 +225,7 @@ export function proposeLessonCandidate(
 
 /**
  * Applies the human decision for a pending candidate:
- * - approve: creates an immutable lesson version, activates it, deletes the candidate
+ * - approve: creates a new lesson with an immutable first version, deletes the candidate
  * - reject: deletes the candidate and its content without leaving a trace
  * - defer: leaves the candidate pending until its original expiry
  */

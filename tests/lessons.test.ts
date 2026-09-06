@@ -182,7 +182,7 @@ test("deferring keeps the candidate until its original expiry", () => {
   });
 });
 
-test("a later approval creates a superseding immutable version", () => {
+test("a later approval in the same scope creates a distinct lesson", () => {
   withDatabase((connection) => {
     const first = proposeLessonCandidate(connection, {
       projectId: null,
@@ -190,7 +190,7 @@ test("a later approval creates a superseding immutable version", () => {
       draft: draftFor(),
       secretScan: clearScan,
     });
-    reviewLessonCandidate(connection, { candidateId: first.id, decision: "approve" });
+    const firstOutcome = reviewLessonCandidate(connection, { candidateId: first.id, decision: "approve" });
 
     const second = proposeLessonCandidate(connection, {
       projectId: null,
@@ -198,19 +198,65 @@ test("a later approval creates a superseding immutable version", () => {
       draft: draftFor({ title: "Run typecheck too" }),
       secretScan: clearScan,
     });
-    const outcome = reviewLessonCandidate(connection, { candidateId: second.id, decision: "approve" });
+    const secondOutcome = reviewLessonCandidate(connection, { candidateId: second.id, decision: "approve" });
 
-    expect(outcome.status).toBe("approved");
-    if (outcome.status === "approved") {
-      expect(outcome.lesson.version).toBe(2);
-      expect(outcome.lesson.activeVersion).toBe(2);
+    expect(firstOutcome.status).toBe("approved");
+    expect(secondOutcome.status).toBe("approved");
+    if (firstOutcome.status !== "approved" || secondOutcome.status !== "approved") {
+      return;
     }
+    expect(secondOutcome.lesson.lessonId).not.toBe(firstOutcome.lesson.lessonId);
+    expect(secondOutcome.lesson.version).toBe(1);
+    expect(secondOutcome.lesson.activeVersion).toBe(1);
     expect(connection.database.query<{ count: number }, []>("SELECT count(*) AS count FROM lessons").get()).toEqual({
-      count: 1,
-    });
-    expect(connection.database.query<{ count: number }, []>("SELECT count(*) AS count FROM lesson_versions").get()).toEqual({
       count: 2,
     });
+    expect(
+      connection.database
+        .query<{ title: string; superseded_by_version: number | null }, []>(
+          "SELECT title, superseded_by_version FROM lesson_versions ORDER BY title",
+        )
+        .all(),
+    ).toEqual([
+      { title: "Run tests before commits", superseded_by_version: null },
+      { title: "Run typecheck too", superseded_by_version: null },
+    ]);
+  });
+});
+
+test("two project-scoped approvals remain independent lessons", () => {
+  withDatabase((connection) => {
+    insertProject(connection, "proj-1");
+    const first = proposeLessonCandidate(connection, {
+      projectId: "proj-1",
+      scope: "project",
+      draft: draftFor({ title: "Use parameterized queries" }),
+      secretScan: clearScan,
+    });
+    const firstOutcome = reviewLessonCandidate(connection, { candidateId: first.id, decision: "approve" });
+
+    const second = proposeLessonCandidate(connection, {
+      projectId: "proj-1",
+      scope: "project",
+      draft: draftFor({ title: "Run the test suite" }),
+      secretScan: clearScan,
+    });
+    const secondOutcome = reviewLessonCandidate(connection, { candidateId: second.id, decision: "approve" });
+
+    expect(firstOutcome.status).toBe("approved");
+    expect(secondOutcome.status).toBe("approved");
+    if (firstOutcome.status !== "approved" || secondOutcome.status !== "approved") {
+      return;
+    }
+    expect(secondOutcome.lesson.lessonId).not.toBe(firstOutcome.lesson.lessonId);
+    expect(connection.database.query<{ count: number }, []>("SELECT count(*) AS count FROM lessons").get()).toEqual({
+      count: 2,
+    });
+    expect(
+      connection.database
+        .query<{ active_version: number | null }, []>("SELECT active_version FROM lessons ORDER BY id")
+        .all(),
+    ).toEqual([{ active_version: 1 }, { active_version: 1 }]);
   });
 });
 

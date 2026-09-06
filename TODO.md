@@ -99,3 +99,4 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T91` Add the CLI diagnostics and compatibility-status command — agent, complexity: simple, depends-on: T3, T4, T16, T68, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T92` Add the evidence-driven model-recommendation acceptance scenario — agent, complexity: complex, depends-on: T21, T63, T71, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [ ] `T93` Review correction-recall and model-recommendation evidence before expanding scope — manual, depends-on: T25, T92, design: docs/designs/2026-09-05-governed-memory-router-v1.md
+- [x] `T94` Create a new lesson on approval instead of superseding the existing lesson for that project and scope — agent, complexity: complex, depends-on: T8, T34, design: docs/designs/2026-09-03-coding-memory-model-router.md

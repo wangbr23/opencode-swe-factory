@@ -172,7 +172,7 @@ test("detects an active-version pointer left on a superseded version", () => {
   });
 });
 
-test("approval through the candidate flow marks the previous version superseded", () => {
+test("approval through the candidate flow does not supersede an existing lesson", () => {
   withDatabase((connection) => {
     const lessonId = createApprovedLesson(connection);
 
@@ -182,18 +182,20 @@ test("approval through the candidate flow marks the previous version superseded"
       draft: draftFor({ title: "Run typecheck too" }),
       secretScan: clearScan,
     });
-    reviewLessonCandidate(connection, { candidateId: second.id, decision: "approve" });
+    const outcome = reviewLessonCandidate(connection, { candidateId: second.id, decision: "approve" });
+    expect(outcome.status).toBe("approved");
+    if (outcome.status === "approved") {
+      expect(outcome.lesson.lessonId).not.toBe(lessonId);
+    }
 
     const versions = connection.database
       .query<{ version: number; superseded_by_version: number | null }, [string]>(
         "SELECT version, superseded_by_version FROM lesson_versions WHERE lesson_id = ? ORDER BY version",
       )
       .all(lessonId);
-    expect(versions).toEqual([
-      { version: 1, superseded_by_version: 2 },
-      { version: 2, superseded_by_version: null },
-    ]);
-    expect(readActiveLessonVersion(connection, lessonId)?.version).toBe(2);
+    expect(versions).toEqual([{ version: 1, superseded_by_version: null }]);
+    expect(readActiveLessonVersion(connection, lessonId)?.version).toBe(1);
+    expect(readActiveLessonVersion(connection, lessonId)?.title).toBe("Run tests before commits");
   });
 });
 
