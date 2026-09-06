@@ -20,7 +20,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T12` Implement atomic privacy-first hard deletion across live and managed storage — agent, complexity: complex, depends-on: T31, T32, T34, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T13` Implement the curated-document source admission policy — agent, complexity: complex, depends-on: T6, T7, T27, T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T14` Implement scoped lexical retrieval over active confirmed lessons — agent, complexity: complex, depends-on: T34, design: docs/designs/2026-09-05-governed-memory-router-v1.md
-- [ ] `T15` Integrate fail-open primary-system-block context injection with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T15` Integrate fail-open primary-system-block context injection with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T16` Implement the pinned local embedding artifact manager — agent, complexity: complex, depends-on: T5, T7, T26, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T17` Implement exact semantic retrieval over scoped confirmed-lesson vectors — agent, complexity: complex, depends-on: T14, T49, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T18` Implement the versioned task taxonomy and deterministic profiler — agent, complexity: complex, depends-on: T2, T6, design: docs/designs/2026-09-03-coding-memory-model-router.md
