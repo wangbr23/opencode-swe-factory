@@ -81,3 +81,33 @@ Append-only log of architecture decisions. One entry per decision, newest at the
 **Decision:** Keep an independent, dependency-light package focused on normative memory and measured recommendations. V1 proves cross-process recall of a human-approved correction and an evidence-driven change in model recommendation. Defer curated-document retrieval, phase-transition retrieval, automatic model mutation, and controlled exploration behind a manual post-V1 evidence review. Do not make Claude-Mem a dependency or write to its database; consider only an optional read-only HTTP bridge after V1.
 
 **Consequences:** Existing document admission and schema work remains dormant rather than removed. Approved-lesson semantic retrieval remains in V1 because paraphrased correction recall is a core outcome. Generic session memory is left to Claude-Mem or similar tools, while this package preserves its stricter no-raw-transcript and no-compression-provider privacy boundary.
+
+## 2026-09-06 — Pin the embedding model revision and artifact checksums
+
+**Status:** Accepted
+
+**Context:** The design requires local semantic retrieval through Transformers.js with a pinned model and verified artifacts so that nothing is downloaded or executed implicitly and normal operation can run fully offline (design risk: embedding supply chain and footprint).
+
+**Decision:** Pin `Xenova/all-MiniLM-L6-v2` at revision `751bff37182d3f1213fa05d7196b954e230abad9` with SHA-256 checksums for the six required files (config, tokenizer, vocab, quantized ONNX weights), recorded by downloading the pinned revision once at pin time. Installation is explicit, gated on `embeddings.allowRemoteDownloads`, refused in private mode, verifies checksums before writing, stores artifacts owner-only under the package cache, and never executes downloaded content. Changing the pinned revision or checksums requires a new decision entry.
+
+**Consequences:** Model updates are a deliberate supply-chain decision rather than silent drift. The quantized ONNX artifact (~23 MB) is the download footprint; semantic retrieval stays on the lexical fallback until artifacts are verified (T49/T82).
+
+## 2026-09-06 — Keep the lesson embedding indexer artifact-agnostic with an injectable embed function
+
+**Status:** Accepted
+
+**Context:** T49 needs confirmed-lesson embedding indexing, but the real local embedder (Transformers.js over the pinned artifacts) is not wired yet and semantic retrieval (T17) will also need to embed queries. Coupling indexing to the model runtime now would make it untestable without the artifact supply chain and would blur the boundary between "compute a vector" and "persist vectors with versioned lifecycle".
+
+**Decision:** Define the embedding computation as an injectable `EmbedLessonTextFn` and keep the indexer responsible only for selecting pending active lesson versions, validating vectors (384 dimensions, finite components), persisting them keyed by (model, revision), and pruning stale-revision and non-active-version rows. Model and revision default to the pinned manifest values so re-embedding is versioned by the pin. Artifact verification is a responsibility of the code that constructs the real embedder, not of the indexer. The asynchronous surface is a fail-open, single-flight scheduler (`schedule()`) whose failures are reported as outcomes, never thrown into the host.
+
+**Consequences:** T17 supplies the real embedder (and can reuse the same function for query embedding); until then nothing calls the indexer with a production embedder and semantic retrieval stays on the lexical fallback. Pruning old-revision vectors after successful re-embedding trades a few megabytes of recomputable data for a store that always reflects the current pin. Indexing cost is bounded per run by a batch cap and incremental by design.
+
+## 2026-09-06 — Take Transformers.js as an optional peer dependency
+
+**Status:** Accepted
+
+**Context:** T17 needs to embed query text, which requires the Transformers.js runtime (`@huggingface/transformers` with its bundled ONNX runtime, ~100 MB installed). The package ethos is dependency-light and the design mandates fail-open behavior ("if the embedding model is cold or fails, lexical retrieval proceeds immediately"), but a hard dependency would make every install pay the runtime cost even for lexical-only use.
+
+**Decision:** Declare `@huggingface/transformers` as an optional peer dependency. `createLocalLessonEmbedder` verifies the pinned artifacts first, then loads the runtime through a dynamic import that is validated structurally on load; a missing or malformed runtime produces a typed `LessonEmbedderError` with code `runtime-unavailable`, so callers fail open to lexical retrieval. The default loader never touches the network for the runtime or the model (`allowRemoteModels = false`), and the model is read only from the checksum-verified artifact directory.
+
+**Consequences:** Default installs stay light; users who want semantic retrieval install the optional runtime explicitly (wiring for an install command arrives with T82). The runtime-unavailable path is a first-class tested behavior rather than an environmental accident. If semantic retrieval becomes default-on later, this decision should be revisited with install-footprint evidence.

@@ -21,8 +21,8 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T13` Implement the curated-document source admission policy — agent, complexity: complex, depends-on: T6, T7, T27, T31, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T14` Implement scoped lexical retrieval over active confirmed lessons — agent, complexity: complex, depends-on: T34, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T15` Integrate fail-open primary-system-block context injection with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T16` Implement the pinned local embedding artifact manager — agent, complexity: complex, depends-on: T5, T7, T26, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T17` Implement exact semantic retrieval over scoped confirmed-lesson vectors — agent, complexity: complex, depends-on: T14, T49, design: docs/designs/2026-09-05-governed-memory-router-v1.md
+- [x] `T16` Implement the pinned local embedding artifact manager — agent, complexity: complex, depends-on: T5, T7, T26, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T17` Implement exact semantic retrieval over scoped confirmed-lesson vectors — agent, complexity: complex, depends-on: T14, T49, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T18` Implement the versioned task taxonomy and deterministic profiler — agent, complexity: complex, depends-on: T2, T6, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T19` Capture assistant-completion execution profiles and provider outcomes — agent, complexity: complex, depends-on: T32, T53, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T20` Implement decayed evidence aggregation with profile backoff and uncertainty — agent, complexity: complex, depends-on: T18, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
@@ -54,7 +54,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T46` Implement token-budget lesson context packing and the retrieval receipt model — agent, complexity: complex, depends-on: T45, T88, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T47` Add the OpenCode context-injection contract suite — agent, complexity: complex, depends-on: T15, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T48` Build the post-V1 phase-transition retrieval prototype and fixture metrics — agent, complexity: complex, depends-on: T47, T93, design: docs/designs/2026-09-05-governed-memory-router-v1.md
-- [ ] `T49` Implement asynchronous confirmed-lesson embedding indexing and versioned re-embedding — agent, complexity: complex, depends-on: T16, T31, T34, design: docs/designs/2026-09-05-governed-memory-router-v1.md
+- [x] `T49` Implement asynchronous confirmed-lesson embedding indexing and versioned re-embedding — agent, complexity: complex, depends-on: T16, T31, T34, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [ ] `T50` Build the versioned confirmed-lesson retrieval benchmark corpus and metrics harness — agent, complexity: complex, depends-on: T46, T85, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T51` Persist redacted task profiles and classification corrections — agent, complexity: complex, depends-on: T7, T18, T32, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T52` Add the CLI task-profile inspection and correction command — agent, complexity: simple, depends-on: T27, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md
