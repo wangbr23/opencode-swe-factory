@@ -46,7 +46,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T38` Add the OpenCode lesson-proposal and commit tools with activation separation — agent, complexity: complex, depends-on: T4, T5, T8, T35, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T39` Implement the inline lesson-approval card flow — agent, complexity: complex, depends-on: T38, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T40` Implement expiring pending-candidate cleanup — agent, complexity: simple, depends-on: T8, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T41` Add transactional restore into a validated replacement database — agent, complexity: complex, depends-on: T10, T28, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T41` Add transactional restore into a validated replacement database — agent, complexity: complex, depends-on: T10, T28, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T42` Implement backup scheduling and versioned retention — agent, complexity: complex, depends-on: T11, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T43` Implement post-V1 heading-aware Markdown chunking with stable citations — agent, complexity: simple, depends-on: T13, T93, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [ ] `T44` Implement post-V1 incremental document FTS indexing and stale-source cleanup — agent, complexity: complex, depends-on: T43, design: docs/designs/2026-09-05-governed-memory-router-v1.md

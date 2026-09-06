@@ -26,6 +26,7 @@ import {
   reviewLessonCandidate,
   savePackageConfig,
   relinkProject,
+  restoreDatabaseFromJsonl,
   supersedeLesson,
   type HealthCheck,
   type LocalDiagnostic,
@@ -58,6 +59,7 @@ Commands:
   supersede <id>            Replace a lesson's active version with new content
   relink <project-id>       Change a project's path or remote association
   export <path>             Export package-owned data as schema-versioned JSONL
+  restore <path>            Replace the live database with a validated JSONL export
   hard-delete               Permanently delete all stored data and managed backups
   status                    Show diagnostics, paths, and compatibility status
 
@@ -644,6 +646,29 @@ async function runExportCommand(parsed: ParsedArgs): Promise<void> {
   }
 }
 
+function runRestoreCommand(parsed: ParsedArgs): void {
+  const inputArg = parsed.commandArg;
+  if (!inputArg) {
+    throw new Error("Usage: restore <input-path>");
+  }
+  const inputPath = resolve(inputArg);
+  const databasePath = resolveDatabasePath(parsed.databasePath);
+
+  console.log(`Restoring ${inputPath} into ${databasePath}.`);
+  console.log("The export is rebuilt and validated in a temporary replacement");
+  console.log("database first; the live database is replaced only if all checks pass.");
+
+  const result = restoreDatabaseFromJsonl({ inputPath, databasePath });
+
+  const totalRows = result.tables.reduce((sum, table) => sum + table.rowCount, 0);
+  for (const table of result.tables) {
+    if (table.rowCount > 0) {
+      console.log(`  ${table.table}: ${table.rowCount} row(s)`);
+    }
+  }
+  console.log(`Restored ${totalRows} row(s) at schema v${result.sqliteSchemaVersion} into ${result.databasePath}.`);
+}
+
 function runHardDeleteCommand(
   parsed: ParsedArgs,
   readLine: (question: string) => string | null,
@@ -719,6 +744,8 @@ export async function main(
       runRelinkCommand(parsed);
     } else if (parsed.command === "export") {
       await runExportCommand(parsed);
+    } else if (parsed.command === "restore") {
+      runRestoreCommand(parsed);
     } else if (parsed.command === "hard-delete") {
       runHardDeleteCommand(parsed, options?.readLine ?? prompt);
     } else if (parsed.command === "status") {

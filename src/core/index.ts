@@ -24,6 +24,7 @@ export * from "./lessons.js";
 export * from "./migrations.js";
 export * from "./paths.js";
 export * from "./project-identity.js";
+export * from "./restore.js";
 export * from "./secrets.js";
 export * from "./schema.js";
 export * from "./sqlite.js";
