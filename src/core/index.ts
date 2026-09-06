@@ -8,6 +8,7 @@ export * from "./diagnostics.js";
 export * from "./document-admission.js";
 export * from "./export.js";
 export * from "./feature-toggles.js";
+export * from "./hard-deletion.js";
 export * from "./lesson-conflict-suppression.js";
 export * from "./lesson-context.js";
 export * from "./markdown-chunking.js";

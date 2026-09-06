@@ -11,6 +11,8 @@ import {
   exportDatabaseToJsonl,
   featureTogglesForScope,
   getBackupScheduleState,
+  HARD_DELETE_CONFIRMATION_PHRASE,
+  hardDeleteAllStoredData,
   inspectLesson,
   listManagedBackups,
   listPendingLessonCandidates,
@@ -56,6 +58,7 @@ Commands:
   supersede <id>            Replace a lesson's active version with new content
   relink <project-id>       Change a project's path or remote association
   export <path>             Export package-owned data as schema-versioned JSONL
+  hard-delete               Permanently delete all stored data and managed backups
   status                    Show diagnostics, paths, and compatibility status
 
 Options:
@@ -641,6 +644,46 @@ async function runExportCommand(parsed: ParsedArgs): Promise<void> {
   }
 }
 
+function runHardDeleteCommand(
+  parsed: ParsedArgs,
+  readLine: (question: string) => string | null,
+): void {
+  const backupDirectory = parsed.backupDirectory ?? resolveManagedPaths().backupDirectory;
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+
+    console.log("WARNING: hard deletion permanently removes ALL stored data:");
+    console.log("  - confirmed lessons and their full version history");
+    console.log("  - pending lesson candidates");
+    console.log("  - document sources, chunks, FTS indexes, and embeddings");
+    console.log("  - tasks, task profiles, execution profiles, and outcome signals");
+    console.log("  - projects, aliases, and project settings");
+    console.log("All managed backup snapshots will be purged and replaced with a single");
+    console.log("clean baseline backup. All historical recovery points will be lost.");
+    console.log("This cannot retract exports or copies you have already made, and cannot");
+    console.log("guarantee physical erasure from SSD snapshots or external backups.");
+
+    const answer = readLine(`\nType '${HARD_DELETE_CONFIRMATION_PHRASE}' to confirm: `);
+    if (answer === null || answer.trim() !== HARD_DELETE_CONFIRMATION_PHRASE) {
+      console.log("Aborted. Nothing was deleted.");
+      return;
+    }
+
+    const report = hardDeleteAllStoredData(connection, { backupDirectory });
+
+    const totalRows = report.tables.reduce((sum, table) => sum + table.deletedRowCount, 0);
+    console.log(`\nDeleted ${totalRows} row(s) across ${report.tables.length} tables.`);
+    console.log("Checkpointed and truncated the WAL, and vacuumed the database.");
+    console.log(`Purged ${report.purgedBackupPaths.length} managed backup(s).`);
+    console.log(`Created clean baseline backup ${report.baselineBackup.backupPath}.`);
+    console.log("Note: exports or copies made earlier remain outside package control,");
+    console.log("as do SSD snapshots and external backups.");
+  } finally {
+    connection.close();
+  }
+}
+
 export async function main(
   args: ReadonlyArray<string> = Bun.argv.slice(2),
   options?: Readonly<{ readLine?: (question: string) => string | null }>,
@@ -676,6 +719,8 @@ export async function main(
       runRelinkCommand(parsed);
     } else if (parsed.command === "export") {
       await runExportCommand(parsed);
+    } else if (parsed.command === "hard-delete") {
+      runHardDeleteCommand(parsed, options?.readLine ?? prompt);
     } else if (parsed.command === "status") {
       runStatusCommand(parsed);
     } else {

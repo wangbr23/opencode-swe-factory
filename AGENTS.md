@@ -22,6 +22,10 @@ This section is only for what's specific to *this* repo:
 - Testing approach: Behavior-focused Bun tests, SQLite migration/concurrency tests, OpenCode adapter contract tests, and end-to-end acceptance scenarios.
 - Commit message format:
 
+## Context discipline
+- Long-output commands (test runs, builds, logs): pipe through `tail`/`head`, or redirect to a file and `grep` it. Never dump full output into the context window.
+- Reading files: read only the section needed (`offset`/`limit`) after locating it with `grep`/`glob`, unless the whole file is genuinely required.
+
 ## Architecture
 A single publishable package exposes a tool-neutral core, CLI, and OpenCode adapter. V1 owns a local SQLite store, human-approved lesson retrieval, privacy-bounded task evidence, and evidence-based model recommendations; the adapter translates OpenCode hooks and tools into core operations. Curated-document retrieval, phase-transition retrieval, and automatic model mutation are deferred until the two core value loops are validated. See [`docs/designs/2026-09-05-governed-memory-router-v1.md`](docs/designs/2026-09-05-governed-memory-router-v1.md).
 
