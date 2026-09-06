@@ -4,13 +4,19 @@ import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import {
+  TASK_ACTIVITY_VALUES,
+  TASK_COMPLEXITY_VALUES,
+  TASK_DOMAIN_VALUES,
+  TASK_RISK_VALUES,
   applyBackupRetention,
+  correctTaskProfile,
   createBackupSnapshot,
   createHealthReport,
   detectLessonDuplicatesAndConflicts,
   exportDatabaseToJsonl,
   featureTogglesForScope,
   getBackupScheduleState,
+  getTaskWithProfile,
   HARD_DELETE_CONFIRMATION_PHRASE,
   hardDeleteAllStoredData,
   inspectLesson,
@@ -32,6 +38,12 @@ import {
   type LocalDiagnostic,
   type LessonCandidateReviewOutcome,
   type LessonOverlapMatch,
+  type PersistedTaskProfile,
+  type TaskActivity,
+  type TaskComplexity,
+  type TaskDomain,
+  type TaskProfileCorrections,
+  type TaskRisk,
 } from "../core/index.js";
 import { createCoreContext } from "../core/index.js";
 import {
@@ -57,6 +69,8 @@ Commands:
   search <query>            Search confirmed lessons by keyword
   lesson <id>               Inspect a specific confirmed lesson
   supersede <id>            Replace a lesson's active version with new content
+  task <id>                 Inspect a task's active profile
+  task <id> --activity ...  Correct a task's active profile (new version)
   relink <project-id>       Change a project's path or remote association
   export <path>             Export package-owned data as schema-versioned JSONL
   restore <path>            Replace the live database with a validated JSONL export
@@ -73,6 +87,11 @@ Options:
   --title <text>             New title for supersede
   --body <text>              New body for supersede
   --rationale <text>         New rationale for supersede
+  --activity <value>         Corrected task activity, or "none" to clear
+  --domain <value>           Corrected task domain, or "none" to clear
+  --complexity <value>       Corrected task complexity (low, medium, high)
+  --risk <value>             Corrected task risk (low, medium, high)
+  --stack <values>           Corrected stack as comma-separated values, or "none" to clear
   --acknowledge-secret-risk  Acknowledge low-confidence secret findings during approval
   --help                     Show this help`;
 }
@@ -89,6 +108,11 @@ type ParsedArgs = Readonly<{
   title: string | undefined;
   body: string | undefined;
   rationale: string | undefined;
+  activity: string | undefined;
+  domain: string | undefined;
+  complexity: string | undefined;
+  risk: string | undefined;
+  stack: string | undefined;
   acknowledgeSecretRisk: boolean;
 }>;
 
@@ -99,7 +123,7 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]!;
-    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--path" || arg === "--remote" || arg === "--title" || arg === "--body" || arg === "--rationale") {
+    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--path" || arg === "--remote" || arg === "--title" || arg === "--body" || arg === "--rationale" || arg === "--activity" || arg === "--domain" || arg === "--complexity" || arg === "--risk" || arg === "--stack") {
       const value = args[index + 1];
       if (value === undefined) {
         throw new Error(`Option ${arg} requires a value.`);
@@ -140,6 +164,11 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
     title: values.get("--title"),
     body: values.get("--body"),
     rationale: values.get("--rationale"),
+    activity: values.get("--activity"),
+    domain: values.get("--domain"),
+    complexity: values.get("--complexity"),
+    risk: values.get("--risk"),
+    stack: values.get("--stack"),
     acknowledgeSecretRisk,
   };
 }
@@ -403,6 +432,143 @@ function runSupersedeCommand(parsed: ParsedArgs): void {
     });
 
     console.log(`\nSuperseded v${result.supersededVersion} with v${result.version}. Active version is now v${result.activeVersion}.`);
+  } finally {
+    connection.close();
+  }
+}
+
+function parseTaxonomyValue<T extends string>(value: string, allowed: ReadonlyArray<T>, option: string): T {
+  const match = allowed.find((candidate) => candidate === value);
+  if (match === undefined) {
+    throw new Error(`Invalid --${option} value "${value}". Allowed: ${allowed.join(", ")}.`);
+  }
+  return match;
+}
+
+function parseClearableTaxonomyValue<T extends string>(
+  value: string,
+  allowed: ReadonlyArray<T>,
+  option: string,
+): T | null {
+  if (value === "none") {
+    return null;
+  }
+  const match = allowed.find((candidate) => candidate === value);
+  if (match === undefined) {
+    throw new Error(`Invalid --${option} value "${value}". Allowed: ${allowed.join(", ")}, or "none".`);
+  }
+  return match;
+}
+
+function buildProfileCorrections(parsed: ParsedArgs): TaskProfileCorrections | null {
+  const corrections: {
+    activity?: TaskActivity | null;
+    domain?: TaskDomain | null;
+    complexity?: TaskComplexity;
+    risk?: TaskRisk;
+    stack?: ReadonlyArray<string>;
+  } = {};
+
+  if (parsed.activity !== undefined) {
+    corrections.activity = parseClearableTaxonomyValue(parsed.activity, TASK_ACTIVITY_VALUES, "activity");
+  }
+  if (parsed.domain !== undefined) {
+    corrections.domain = parseClearableTaxonomyValue(parsed.domain, TASK_DOMAIN_VALUES, "domain");
+  }
+  if (parsed.complexity !== undefined) {
+    corrections.complexity = parseTaxonomyValue(parsed.complexity, TASK_COMPLEXITY_VALUES, "complexity");
+  }
+  if (parsed.risk !== undefined) {
+    corrections.risk = parseTaxonomyValue(parsed.risk, TASK_RISK_VALUES, "risk");
+  }
+  if (parsed.stack !== undefined) {
+    corrections.stack =
+      parsed.stack === "none"
+        ? []
+        : parsed.stack.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+  }
+
+  return Object.keys(corrections).length === 0 ? null : corrections;
+}
+
+function printActiveProfile(profile: PersistedTaskProfile): void {
+  console.log(`\n  Active profile (v${profile.version}, ${profile.source}):`);
+  console.log(`    Activity:    ${profile.activity ?? "(none)"}`);
+  console.log(`    Domain:      ${profile.domain ?? "(none)"}`);
+  console.log(`    Complexity:  ${profile.complexity}`);
+  console.log(`    Risk:        ${profile.risk}`);
+  console.log(`    Stack:       ${profile.stack.length > 0 ? profile.stack.join(", ") : "(none)"}`);
+  console.log(`    Signals:     ${profile.signals.length > 0 ? profile.signals.join(", ") : "(none)"}`);
+  console.log(`    Summary:     ${profile.summary}`);
+  if (profile.supersededVersion !== null) {
+    console.log(`    Supersedes:  v${profile.supersededVersion}`);
+  }
+}
+
+function printProfileChange(label: string, before: string, after: string): void {
+  if (before !== after) {
+    console.log(`  ${label}: ${before} -> ${after}`);
+  }
+}
+
+function runTaskCommand(parsed: ParsedArgs): void {
+  const taskId = parsed.commandArg;
+  if (!taskId) {
+    throw new Error(
+      "Usage: task <task-id> [--activity <value>] [--domain <value>] [--complexity <value>] [--risk <value>] [--stack <values>]",
+    );
+  }
+  const corrections = buildProfileCorrections(parsed);
+
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+
+    if (corrections) {
+      const before = getTaskWithProfile(connection, taskId);
+      if (!before) {
+        throw new Error(`Task ${taskId} not found.`);
+      }
+      if (!before.activeProfile) {
+        throw new Error(`Task ${taskId} has no active profile to correct.`);
+      }
+      const result = correctTaskProfile(connection, { taskId, corrections });
+      const after = getTaskWithProfile(connection, taskId)?.activeProfile;
+      console.log(`\nCorrected task ${taskId} (v${result.supersededVersion} -> v${result.version}):`);
+      if (after) {
+        const b = before.activeProfile;
+        printProfileChange("Activity", b.activity ?? "(none)", after.activity ?? "(none)");
+        printProfileChange("Domain", b.domain ?? "(none)", after.domain ?? "(none)");
+        printProfileChange("Complexity", b.complexity, after.complexity);
+        printProfileChange("Risk", b.risk, after.risk);
+        printProfileChange("Stack", b.stack.join(", ") || "(none)", after.stack.join(", ") || "(none)");
+      }
+      console.log(`\nActive profile version is now v${result.version}.`);
+      return;
+    }
+
+    const task = getTaskWithProfile(connection, taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} not found.`);
+    }
+    console.log(`\nTask ${task.taskId}:`);
+    console.log(`  Project:   ${task.projectId}`);
+    console.log(`  Session:   ${task.sessionId}`);
+    console.log(`  Boundary:  ${task.boundary}`);
+    if (task.parentTaskId !== null) {
+      console.log(`  Parent:    ${task.parentTaskId}`);
+    }
+    if (task.hostTaskId !== null) {
+      console.log(`  Host:      ${task.hostTaskId}`);
+    }
+    console.log(`  Created:   ${task.createdAt}`);
+    console.log(`  Updated:   ${task.updatedAt}`);
+    console.log(`  Completed: ${task.completedAt ?? "not completed"}`);
+    if (task.activeProfile) {
+      printActiveProfile(task.activeProfile);
+    } else {
+      console.log("\n  No active profile.");
+    }
   } finally {
     connection.close();
   }
@@ -736,6 +902,8 @@ export async function main(
       runTogglesCommand(parsed);
     } else if (parsed.command === "supersede") {
       runSupersedeCommand(parsed);
+    } else if (parsed.command === "task") {
+      runTaskCommand(parsed);
     } else if (parsed.command === "search") {
       runSearchCommand(parsed);
     } else if (parsed.command === "lesson") {
