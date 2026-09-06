@@ -5,6 +5,7 @@ export * from "./compatibility.js";
 export * from "./context-injection.js";
 export * from "./health.js";
 export * from "./lesson-tools.js";
+export * from "./plugin.js";
 export * from "./task-boundary.js";
 export * from "./toggle-tools.js";
 
