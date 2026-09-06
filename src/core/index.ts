@@ -20,6 +20,7 @@ export * from "./project-identity.js";
 export * from "./secrets.js";
 export * from "./schema.js";
 export * from "./sqlite.js";
+export * from "./task-persistence.js";
 export * from "./task-profile.js";
 export * from "./task-taxonomy.js";
 
