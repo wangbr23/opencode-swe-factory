@@ -58,7 +58,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [ ] `T50` Build the versioned confirmed-lesson retrieval benchmark corpus and metrics harness — agent, complexity: complex, depends-on: T46, T85, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T51` Persist redacted task profiles and classification corrections — agent, complexity: complex, depends-on: T7, T18, T32, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T52` Add the CLI task-profile inspection and correction command — agent, complexity: simple, depends-on: T27, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T53` Map OpenCode top-level requests and delegated subtasks into task boundaries — agent, complexity: complex, depends-on: T4, T5, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T53` Map OpenCode top-level requests and delegated subtasks into task boundaries — agent, complexity: complex, depends-on: T4, T5, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T54` Derive objective tool outcome signals without retaining raw output — agent, complexity: complex, depends-on: T7, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T55` Implement explicit feedback signals and correction-to-execution links — agent, complexity: complex, depends-on: T8, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T56` Add the CLI feedback-recording command — agent, complexity: simple, depends-on: T27, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
