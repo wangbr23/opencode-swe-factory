@@ -20,6 +20,7 @@ import {
   retrieveConfirmedLessonsLexically,
   reviewLessonCandidate,
   savePackageConfig,
+  supersedeLesson,
   type LessonCandidateReviewOutcome,
   type LessonOverlapMatch,
 } from "../core/index.js";
@@ -42,12 +43,16 @@ Commands:
   review <id>               Review a specific candidate with overlap analysis
   search <query>            Search confirmed lessons by keyword
   lesson <id>               Inspect a specific confirmed lesson
+  supersede <id>            Replace a lesson's active version with new content
 
 Options:
   --database <path>          Path to the SQLite database file
   --backup-dir <dir>         Override the managed backup directory
   --config <path>            Override the package configuration file
   --project <id>             Filter search results to a specific project
+  --title <text>             New title for supersede
+  --body <text>              New body for supersede
+  --rationale <text>         New rationale for supersede
   --acknowledge-secret-risk  Acknowledge low-confidence secret findings during approval
   --help                     Show this help`;
 }
@@ -59,6 +64,9 @@ type ParsedArgs = Readonly<{
   backupDirectory: string | undefined;
   configFilePath: string | undefined;
   projectId: string | undefined;
+  title: string | undefined;
+  body: string | undefined;
+  rationale: string | undefined;
   acknowledgeSecretRisk: boolean;
 }>;
 
@@ -69,7 +77,7 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]!;
-    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project") {
+    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--title" || arg === "--body" || arg === "--rationale") {
       const value = args[index + 1];
       if (value === undefined) {
         throw new Error(`Option ${arg} requires a value.`);
@@ -105,6 +113,9 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
     backupDirectory: values.get("--backup-dir"),
     configFilePath: values.get("--config"),
     projectId: values.get("--project"),
+    title: values.get("--title"),
+    body: values.get("--body"),
+    rationale: values.get("--rationale"),
     acknowledgeSecretRisk,
   };
 }
@@ -328,6 +339,51 @@ function runLessonCommand(parsed: ParsedArgs): void {
   }
 }
 
+function runSupersedeCommand(parsed: ParsedArgs): void {
+  const lessonId = parsed.commandArg;
+  if (!lessonId) {
+    throw new Error("Usage: supersede <lesson-id> --title <text> --body <text> --rationale <text>");
+  }
+  if (!parsed.title || !parsed.body || !parsed.rationale) {
+    throw new Error("All of --title, --body, and --rationale are required for supersede.");
+  }
+
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+
+    const inspection = inspectLesson(connection, lessonId);
+    if (!inspection) {
+      throw new Error(`Lesson ${lessonId} not found.`);
+    }
+    if (!inspection.activeVersion) {
+      throw new Error(`Lesson ${lessonId} has no active version to supersede.`);
+    }
+
+    const current = inspection.activeVersion;
+    console.log(`\nSuperseding lesson ${lessonId} (v${current.version}):`);
+    console.log(`  Current title: ${current.title}`);
+    console.log(`  Current body:  ${current.body}`);
+    console.log(`  New title:     ${parsed.title}`);
+    console.log(`  New body:      ${parsed.body}`);
+
+    const result = supersedeLesson(connection, {
+      lessonId,
+      draft: {
+        title: parsed.title,
+        body: parsed.body,
+        rationale: parsed.rationale,
+        applicability: current.applicability,
+        provenance: current.provenance,
+      },
+    });
+
+    console.log(`\nSuperseded v${result.supersededVersion} with v${result.version}. Active version is now v${result.activeVersion}.`);
+  } finally {
+    connection.close();
+  }
+}
+
 function resolveConfigPathInput(parsed: ParsedArgs) {
   return parsed.configFilePath === undefined ? {} : { configFilePath: parsed.configFilePath };
 }
@@ -454,6 +510,8 @@ export function main(
       runConfigCommand(parsed);
     } else if (parsed.command === "toggles") {
       runTogglesCommand(parsed);
+    } else if (parsed.command === "supersede") {
+      runSupersedeCommand(parsed);
     } else if (parsed.command === "search") {
       runSearchCommand(parsed);
     } else if (parsed.command === "lesson") {
