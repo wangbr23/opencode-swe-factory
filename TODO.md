@@ -59,7 +59,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T51` Persist redacted task profiles and classification corrections — agent, complexity: complex, depends-on: T7, T18, T32, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T52` Add the CLI task-profile inspection and correction command — agent, complexity: simple, depends-on: T27, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T53` Map OpenCode top-level requests and delegated subtasks into task boundaries — agent, complexity: complex, depends-on: T4, T5, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T54` Derive objective tool outcome signals without retaining raw output — agent, complexity: complex, depends-on: T7, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T54` Derive objective tool outcome signals without retaining raw output — agent, complexity: complex, depends-on: T7, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T55` Implement explicit feedback signals and correction-to-execution links — agent, complexity: complex, depends-on: T8, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T56` Add the CLI feedback-recording command — agent, complexity: simple, depends-on: T27, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T57` Add the OpenCode explicit-feedback tool — agent, complexity: simple, depends-on: T4, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md

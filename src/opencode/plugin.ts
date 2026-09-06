@@ -30,6 +30,10 @@ import {
   createExecutionCaptureState,
   handleAssistantCompletion,
 } from "./execution-capture.js";
+import {
+  createToolOutcomeCaptureState,
+  handleToolCompletion,
+} from "./tool-outcome-capture.js";
 import { handleProposeLesson, handleCommitLesson } from "./lesson-tools.js";
 import { formatApprovalCard } from "./approval-flow.js";
 import {
@@ -111,6 +115,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
   const injectionState = createInjectionState();
   const taskBoundaryState = createTaskBoundaryState();
   const executionCaptureState = createExecutionCaptureState();
+  const toolOutcomeCaptureState = createToolOutcomeCaptureState();
   const sessionTogglesMap = new Map<string, OpenCodeSessionToggles>();
 
   const hooks: Hooks = {
@@ -215,6 +220,34 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
                 }
               : {}),
             softwareVersions: { opencode: compatibility.version },
+          },
+        );
+      } catch {
+        // fail-open: hook errors must not break OpenCode
+      }
+    },
+
+    "tool.execute.after": async (input, output) => {
+      try {
+        const session = getOrCreateSessionToggles(
+          sessionTogglesMap,
+          input.sessionID,
+        );
+        const toggles = resolveToggles(config, session);
+
+        handleToolCompletion(
+          toolOutcomeCaptureState,
+          taskBoundaryState,
+          connection,
+          toggles,
+          {
+            sessionId: input.sessionID,
+            callId: input.callID,
+            tool: input.tool,
+            ...(input.args !== undefined ? { args: input.args } : {}),
+            ...(output.metadata !== undefined
+              ? { metadata: output.metadata }
+              : {}),
           },
         );
       } catch {

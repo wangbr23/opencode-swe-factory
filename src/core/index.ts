@@ -33,6 +33,7 @@ export * from "./sqlite.js";
 export * from "./task-persistence.js";
 export * from "./task-profile.js";
 export * from "./task-taxonomy.js";
+export * from "./tool-outcome-signals.js";
 
 export type CoreContext = Readonly<{
   packageName: typeof PACKAGE_NAME;
