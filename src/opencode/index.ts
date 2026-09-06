@@ -2,6 +2,7 @@ import { createCoreContext, type CoreContext } from "../core/index.js";
 
 export * from "./compatibility.js";
 export * from "./health.js";
+export * from "./toggle-tools.js";
 
 export type OpenCodeAdapterScaffold = Readonly<{
   kind: "opencode-adapter";
