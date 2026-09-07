@@ -7,6 +7,7 @@ export * from "./feedback-tool.js";
 export * from "./health.js";
 export * from "./lesson-tools.js";
 export * from "./plugin.js";
+export * from "./session-end-review.js";
 export * from "./task-boundary.js";
 export * from "./toggle-tools.js";
 

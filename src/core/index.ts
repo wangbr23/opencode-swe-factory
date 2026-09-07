@@ -33,6 +33,7 @@ export * from "./lesson-retrieval.js";
 export * from "./lesson-supersession.js";
 export * from "./lesson-usage-tracking.js";
 export * from "./lessons.js";
+export * from "./session-end-review.js";
 export * from "./migrations.js";
 export * from "./paths.js";
 export * from "./project-identity.js";

@@ -51,6 +51,10 @@ import {
   describeRoutingReceipt,
 } from "./routing-receipt.js";
 import {
+  createSessionEndReviewState,
+  handleSessionIdle,
+} from "./session-end-review.js";
+import {
   createTaskBoundaryState,
   extractMessageText,
   handleTaskBoundary,
@@ -131,6 +135,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
   const executionCaptureState = createExecutionCaptureState();
   const toolOutcomeCaptureState = createToolOutcomeCaptureState();
   const routingReceiptState = createRoutingReceiptState();
+  const sessionEndReviewState = createSessionEndReviewState();
   const sessionTogglesMap = new Map<string, OpenCodeSessionToggles>();
   let embedder: EmbedLessonTextFn | undefined;
   let embedderStartup: Promise<void> | undefined;
@@ -266,6 +271,19 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
 
     event: async ({ event }) => {
       try {
+        if (event.type === "session.idle") {
+          const session = getOrCreateSessionToggles(
+            sessionTogglesMap,
+            event.properties.sessionID,
+          );
+          const toggles = resolveToggles(config, session);
+          await handleSessionIdle(sessionEndReviewState, connection, toggles, {
+            sessionId: event.properties.sessionID,
+            diagnosticsPath,
+          });
+          return;
+        }
+
         if (event.type !== "message.updated") return;
         const info = event.properties.info;
         if (info.role !== "assistant") return;
