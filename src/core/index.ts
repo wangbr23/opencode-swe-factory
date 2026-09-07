@@ -21,6 +21,7 @@ export * from "./lesson-context.js";
 export * from "./lesson-embedder.js";
 export * from "./lesson-semantic-retrieval.js";
 export * from "./markdown-chunking.js";
+export * from "./model-eligibility.js";
 export * from "./lesson-duplicate-detection.js";
 export * from "./lesson-retrieval.js";
 export * from "./lesson-supersession.js";
