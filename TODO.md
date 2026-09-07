@@ -62,7 +62,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T54` Derive objective tool outcome signals without retaining raw output — agent, complexity: complex, depends-on: T7, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T55` Implement explicit feedback signals and correction-to-execution links — agent, complexity: complex, depends-on: T8, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T56` Add the CLI feedback-recording command — agent, complexity: simple, depends-on: T27, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T57` Add the OpenCode explicit-feedback tool — agent, complexity: simple, depends-on: T4, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T57` Add the OpenCode explicit-feedback tool — agent, complexity: simple, depends-on: T4, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T58` Add the CLI evidence-inspection command — agent, complexity: simple, depends-on: T27, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T59` Implement strong-signal and repeated-success lesson proposals without silence inference — agent, complexity: complex, depends-on: T38, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T60` Implement allowlist, capability, privacy, budget, and latency eligibility filters — agent, complexity: complex, depends-on: T2, T18, design: docs/designs/2026-09-03-coding-memory-model-router.md

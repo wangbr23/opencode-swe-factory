@@ -42,6 +42,10 @@ import {
 import { handleProposeLesson, handleCommitLesson } from "./lesson-tools.js";
 import { formatApprovalCard } from "./approval-flow.js";
 import {
+  describeFeedbackResult,
+  handleRecordFeedback,
+} from "./feedback-tool.js";
+import {
   computeRoutingReceipt,
   createRoutingReceiptState,
   describeRoutingReceipt,
@@ -463,6 +467,40 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
           );
           const result = getFeatureToggles(config, session);
           return JSON.stringify(result, null, 2);
+        },
+      }),
+
+      swe_factory_record_feedback: tool({
+        description:
+          "Record explicit user feedback for the current task. Use acceptance when the delivered work is good as-is, correction when the user supplied the right answer after a mistake, and rework when the work had to be redone without new guidance.",
+        args: {
+          feedbackKind: tool.schema
+            .enum(["acceptance", "correction", "rework"])
+            .describe("The kind of explicit feedback"),
+          taskId: tool.schema
+            .string()
+            .optional()
+            .describe(
+              "Optional task ID; defaults to the active task for this session",
+            ),
+        },
+        async execute(args, context) {
+          const session = getOrCreateSessionToggles(
+            sessionTogglesMap,
+            context.sessionID,
+          );
+          const toggles = resolveToggles(config, session);
+          const result = handleRecordFeedback(
+            taskBoundaryState,
+            connection,
+            toggles,
+            {
+              sessionId: context.sessionID,
+              feedbackKind: args.feedbackKind,
+              ...(args.taskId !== undefined ? { taskId: args.taskId } : {}),
+            },
+          );
+          return describeFeedbackResult(result);
         },
       }),
 
