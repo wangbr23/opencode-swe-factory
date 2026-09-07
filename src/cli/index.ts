@@ -14,6 +14,7 @@ import {
   createHealthReport,
   detectLessonDuplicatesAndConflicts,
   exportDatabaseToJsonl,
+  EXPLICIT_FEEDBACK_VALUES,
   featureTogglesForScope,
   getBackupScheduleState,
   getTaskWithProfile,
@@ -26,6 +27,7 @@ import {
   migrateSqliteSchema,
   openSqliteConnection,
   readLocalDiagnostics,
+  recordExplicitFeedback,
   releaseSchemaMigrations,
   resolveManagedPaths,
   retrieveConfirmedLessonsLexically,
@@ -34,6 +36,7 @@ import {
   relinkProject,
   restoreDatabaseFromJsonl,
   supersedeLesson,
+  type ExplicitFeedbackKind,
   type HealthCheck,
   type LocalDiagnostic,
   type LessonCandidateReviewOutcome,
@@ -71,6 +74,7 @@ Commands:
   supersede <id>            Replace a lesson's active version with new content
   task <id>                 Inspect a task's active profile
   task <id> --activity ...  Correct a task's active profile (new version)
+  feedback <task-id>        Record explicit feedback for a task
   relink <project-id>       Change a project's path or remote association
   export <path>             Export package-owned data as schema-versioned JSONL
   restore <path>            Replace the live database with a validated JSONL export
@@ -92,6 +96,7 @@ Options:
   --complexity <value>       Corrected task complexity (low, medium, high)
   --risk <value>             Corrected task risk (low, medium, high)
   --stack <values>           Corrected stack as comma-separated values, or "none" to clear
+  --kind <value>             Explicit feedback kind (acceptance, correction, rework)
   --acknowledge-secret-risk  Acknowledge low-confidence secret findings during approval
   --help                     Show this help`;
 }
@@ -108,6 +113,7 @@ type ParsedArgs = Readonly<{
   title: string | undefined;
   body: string | undefined;
   rationale: string | undefined;
+  feedbackKind: string | undefined;
   activity: string | undefined;
   domain: string | undefined;
   complexity: string | undefined;
@@ -123,7 +129,7 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]!;
-    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--path" || arg === "--remote" || arg === "--title" || arg === "--body" || arg === "--rationale" || arg === "--activity" || arg === "--domain" || arg === "--complexity" || arg === "--risk" || arg === "--stack") {
+    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--path" || arg === "--remote" || arg === "--title" || arg === "--body" || arg === "--rationale" || arg === "--kind" || arg === "--activity" || arg === "--domain" || arg === "--complexity" || arg === "--risk" || arg === "--stack") {
       const value = args[index + 1];
       if (value === undefined) {
         throw new Error(`Option ${arg} requires a value.`);
@@ -164,6 +170,7 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
     title: values.get("--title"),
     body: values.get("--body"),
     rationale: values.get("--rationale"),
+    feedbackKind: values.get("--kind"),
     activity: values.get("--activity"),
     domain: values.get("--domain"),
     complexity: values.get("--complexity"),
@@ -574,6 +581,32 @@ function runTaskCommand(parsed: ParsedArgs): void {
   }
 }
 
+function runFeedbackCommand(parsed: ParsedArgs): void {
+  const taskId = parsed.commandArg;
+  if (!taskId || parsed.feedbackKind === undefined) {
+    throw new Error("Usage: feedback <task-id> --kind <acceptance|correction|rework>");
+  }
+  const feedbackKind = parseTaxonomyValue(
+    parsed.feedbackKind,
+    Object.keys(EXPLICIT_FEEDBACK_VALUES) as ExplicitFeedbackKind[],
+    "kind",
+  );
+
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const result = recordExplicitFeedback(connection, { taskId, feedbackKind });
+    console.log(`\nRecorded ${result.feedbackKind} feedback for task ${result.taskId}.`);
+    console.log(`  Signal: ${result.signalId}`);
+    console.log(`  Value:  ${result.value}`);
+    if (result.supersededSignalId !== undefined) {
+      console.log(`  Retracted prior acceptance signal ${result.supersededSignalId}.`);
+    }
+  } finally {
+    connection.close();
+  }
+}
+
 function runRelinkCommand(parsed: ParsedArgs): void {
   const projectId = parsed.commandArg;
   if (!projectId) {
@@ -904,6 +937,8 @@ export async function main(
       runSupersedeCommand(parsed);
     } else if (parsed.command === "task") {
       runTaskCommand(parsed);
+    } else if (parsed.command === "feedback") {
+      runFeedbackCommand(parsed);
     } else if (parsed.command === "search") {
       runSearchCommand(parsed);
     } else if (parsed.command === "lesson") {

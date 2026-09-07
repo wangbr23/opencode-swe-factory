@@ -29,7 +29,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T21` Integrate recommendation mode and compact routing receipts with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, T53, T62, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T22` Approve post-V1 automatic-routing confidence, utility, latency, and exploration thresholds — manual, depends-on: T63, T65, T93, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [ ] `T23` Implement compatibility-gated automatic model routing — agent, complexity: complex, depends-on: T22, T65, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T24` Implement the stale, unused, duplicate, and conflict maintenance digest — agent, complexity: complex, depends-on: T35, T46, T54, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T24` Implement the stale, unused, duplicate, and conflict maintenance digest — agent, complexity: complex, depends-on: T35, T46, T54, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T25` Add the cross-process correction-recall and paraphrase acceptance scenario — agent, complexity: complex, depends-on: T39, T71, T85, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T26` Resolve OS-specific package paths and enforce owner-only permissions — agent, complexity: simple, depends-on: T1, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T27` Implement package configuration loading and persistence — agent, complexity: simple, depends-on: T2, T26, design: docs/designs/2026-09-03-coding-memory-model-router.md
@@ -61,7 +61,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T53` Map OpenCode top-level requests and delegated subtasks into task boundaries — agent, complexity: complex, depends-on: T4, T5, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T54` Derive objective tool outcome signals without retaining raw output — agent, complexity: complex, depends-on: T7, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T55` Implement explicit feedback signals and correction-to-execution links — agent, complexity: complex, depends-on: T8, T19, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T56` Add the CLI feedback-recording command — agent, complexity: simple, depends-on: T27, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T56` Add the CLI feedback-recording command — agent, complexity: simple, depends-on: T27, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T57` Add the OpenCode explicit-feedback tool — agent, complexity: simple, depends-on: T4, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T58` Add the CLI evidence-inspection command — agent, complexity: simple, depends-on: T27, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T59` Implement strong-signal and repeated-success lesson proposals without silence inference — agent, complexity: complex, depends-on: T38, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md

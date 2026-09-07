@@ -1,0 +1,4 @@
+export const DEFAULT_STALE_AFTER_DAYS = 90;
+export const DEFAULT_UNUSED_AFTER_DAYS = 30;
+export const DEFAULT_MAX_PAIRWISE_LESSONS = 1000;
+export const MS_PER_DAY = 86_400_000;

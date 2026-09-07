@@ -5,33 +5,13 @@ import type {
 } from "../types/lesson-conflict-suppression-types.js";
 import type { LexicalLessonResult } from "../types/lesson-retrieval-types.js";
 import { MINIMUM_OVERLAP_THRESHOLD } from "./lesson-duplicate-detection-constants.js";
+import { extractTerms, jaccardSimilarity } from "./lexical-overlap.js";
 
 export type {
   SuppressConflictsInput,
   SuppressConflictsResult,
   SuppressedLesson,
 } from "../types/lesson-conflict-suppression-types.js";
-
-function extractTerms(text: string): Set<string> {
-  const tokens = text.match(/[\p{L}\p{N}_]+/gu) ?? [];
-  const terms = new Set<string>();
-  for (const token of tokens) {
-    terms.add(token.toLowerCase());
-  }
-  return terms;
-}
-
-function jaccardSimilarity(a: ReadonlySet<string>, b: ReadonlySet<string>): number {
-  if (a.size === 0 || b.size === 0) return 0;
-  let intersection = 0;
-  const smaller = a.size <= b.size ? a : b;
-  const larger = a.size <= b.size ? b : a;
-  for (const term of smaller) {
-    if (larger.has(term)) intersection++;
-  }
-  const union = a.size + b.size - intersection;
-  return intersection / union;
-}
 
 /**
  * Filters retrieval results to suppress lessons that conflict with

@@ -1,6 +1,7 @@
 import type { SchemaMigration } from "./migrations.js";
 import {
   CREATE_LESSON_TABLES_SQL,
+  CREATE_LESSON_USAGE_TABLES_SQL,
   CREATE_PROJECT_TABLES_SQL,
   CREATE_RETRIEVAL_INDEX_TABLES_SQL,
 } from "./schema-sql.js";
@@ -33,6 +34,13 @@ export const releaseSchemaMigrations: readonly SchemaMigration[] = [
     name: "create tasks, execution profiles, and outcome signals",
     migrate(database) {
       database.run(CREATE_TASK_EVIDENCE_TABLES_SQL);
+    },
+  },
+  {
+    version: 5,
+    name: "create lesson retrieval usage tracking",
+    migrate(database) {
+      database.run(CREATE_LESSON_USAGE_TABLES_SQL);
     },
   },
 ];

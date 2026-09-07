@@ -65,6 +65,15 @@ CREATE TABLE pending_lesson_candidates (
 CREATE INDEX pending_lesson_candidates_expiry_idx ON pending_lesson_candidates (expires_at);
 `;
 
+export const CREATE_LESSON_USAGE_TABLES_SQL = `
+CREATE TABLE lesson_retrieval_hits (
+  lesson_id TEXT NOT NULL REFERENCES lessons (id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  retrieved_day TEXT NOT NULL,
+  PRIMARY KEY (lesson_id, version, retrieved_day)
+);
+`;
+
 export const CREATE_RETRIEVAL_INDEX_TABLES_SQL = `
 CREATE TABLE document_sources (
   id TEXT PRIMARY KEY,

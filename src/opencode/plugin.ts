@@ -10,6 +10,7 @@ import {
   releaseSchemaMigrations,
 } from "../core/index.js";
 import { retrieveConfirmedLessonsLexically } from "../core/lesson-retrieval.js";
+import { recordLessonRetrievalHits } from "../core/lesson-usage-tracking.js";
 import { resolveManagedPaths } from "../core/paths.js";
 import { resolveProjectIdentity } from "../core/project-identity.js";
 import { profileTask } from "../core/task-profile.js";
@@ -157,11 +158,24 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
             injectionState,
             toggles,
             buildInjectionInput(sessionId, input.messageID, messageText, projectId),
-            (query, pid) =>
-              retrieveConfirmedLessonsLexically(connection, {
+            (query, pid) => {
+              const results = retrieveConfirmedLessonsLexically(connection, {
                 query,
                 projectId: pid,
-              }),
+              });
+              // Usage tracking feeds the maintenance digest and must never break injection.
+              try {
+                recordLessonRetrievalHits(connection, {
+                  hits: results.map((lesson) => ({
+                    lessonId: lesson.lessonId,
+                    version: lesson.version,
+                  })),
+                });
+              } catch {
+                // fail-open: digests degrade without usage data
+              }
+              return results;
+            },
           );
         }
 

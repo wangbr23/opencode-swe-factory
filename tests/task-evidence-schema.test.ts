@@ -132,8 +132,8 @@ test("upgrades version 3 with task evidence tables", () => {
 
     expect(migrateSqliteSchema(connection, releaseSchemaMigrations)).toEqual({
       status: "ready",
-      schemaVersion: 4,
-      appliedVersions: [4],
+      schemaVersion: releaseSchemaMigrations.length,
+      appliedVersions: releaseSchemaMigrations.slice(3).map((migration) => migration.version),
     });
     expect(
       connection.database
