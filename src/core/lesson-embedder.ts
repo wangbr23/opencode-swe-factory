@@ -1,6 +1,7 @@
 import { basename, dirname } from "node:path";
 
 import { verifyEmbeddingArtifacts } from "./embedding-artifacts.js";
+import { PINNED_EMBEDDING_DTYPE } from "./embedding-artifact-manifest.js";
 import { EMBEDDING_VECTOR_DIMENSIONS } from "../types/embedding-types.js";
 import type { EmbedLessonTextFn } from "../types/lesson-embedding-index-types.js";
 import type {
@@ -135,10 +136,13 @@ export async function createLocalLessonEmbedder(
 
   const loadTransformers: LoadTransformersFn = input.loadTransformers ?? defaultLoadTransformers;
   const transformers = await loadTransformersModule(loadTransformers);
+  transformers.env.allowLocalModels = true;
   transformers.env.allowRemoteModels = false;
   transformers.env.localModelPath = dirname(artifactDirectory);
 
-  const extract = await transformers.pipeline("feature-extraction", modelName);
+  const extract = await transformers.pipeline("feature-extraction", modelName, {
+    dtype: PINNED_EMBEDDING_DTYPE,
+  });
 
   return async (text: string): Promise<Float32Array> => {
     const embeddableText = requireEmbeddableText(text);

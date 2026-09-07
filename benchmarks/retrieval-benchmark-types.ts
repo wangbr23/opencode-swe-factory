@@ -1,6 +1,6 @@
-import type { EmbedLessonTextFn } from "./lesson-embedding-index-types.js";
-import type { LessonRetrievalTaskProfile } from "./lesson-hybrid-retrieval-types.js";
-import type { LessonScope } from "./lessons-types.js";
+import type { EmbedLessonTextFn } from "../src/types/lesson-embedding-index-types.js";
+import type { LessonRetrievalTaskProfile } from "../src/types/lesson-hybrid-retrieval-types.js";
+import type { LessonScope } from "../src/types/lessons-types.js";
 
 export type ConfirmedLessonBenchmarkVersion = Readonly<{
   version: number;
@@ -8,6 +8,7 @@ export type ConfirmedLessonBenchmarkVersion = Readonly<{
   body: string;
   rationale: string;
   applicability: Readonly<Record<string, unknown>>;
+  createdAt: string;
   active: boolean;
 }>;
 
@@ -26,6 +27,7 @@ export type ConfirmedLessonBenchmarkCase = Readonly<{
   tokenBudget: number;
   relevantLessonIds: ReadonlyArray<string>;
   expectedSuppressedLessonIds: ReadonlyArray<string>;
+  expectedPackedLessonIds: ReadonlyArray<string>;
 }>;
 
 export type ConfirmedLessonRetrievalBenchmarkCorpus = Readonly<{
@@ -35,10 +37,11 @@ export type ConfirmedLessonRetrievalBenchmarkCorpus = Readonly<{
 }>;
 
 export type BenchmarkClock = () => number;
+export type CreateBenchmarkEmbedderFn = () => Promise<EmbedLessonTextFn>;
 
 export type ConfirmedLessonRetrievalBenchmarkInput = Readonly<{
   corpus: ConfirmedLessonRetrievalBenchmarkCorpus;
-  embed: EmbedLessonTextFn;
+  createEmbed: CreateBenchmarkEmbedderFn;
   now?: Date;
   clock?: BenchmarkClock;
   limit?: number;
@@ -46,14 +49,20 @@ export type ConfirmedLessonRetrievalBenchmarkInput = Readonly<{
 
 export type ConfirmedLessonRetrievalBenchmarkCaseResult = Readonly<{
   id: string;
+  /** Retrieval quality is measured before conflict suppression. */
   retrievedLessonIds: ReadonlyArray<string>;
+  retrievedLessonVersions: ReadonlyArray<Readonly<{ lessonId: string; version: number }>>;
+  semanticAvailable: boolean;
+  semanticCandidateCount: number;
   suppressedLessonIds: ReadonlyArray<string>;
+  /** False injection is measured after conflict suppression and token packing. */
   packedLessonIds: ReadonlyArray<string>;
   recallAtK: number;
   reciprocalRank: number;
   incorrectInjectionCount: number;
   packedCount: number;
   conflictSuppressionCorrect: boolean;
+  packingCorrect: boolean;
   contextBudgetCompliant: boolean;
   latencyMs: number;
 }>;
@@ -66,10 +75,14 @@ export type ConfirmedLessonRetrievalBenchmarkResult = Readonly<{
     meanReciprocalRank: number;
     incorrectInjectionRate: number;
     conflictSuppressionCorrectness: number;
+    packingCorrectness: number;
     contextBudgetCompliance: number;
-    /** Fresh database migration, indexing, and the first retrieve→suppress→pack case. */
+    semanticAvailability: number;
+    /** Fresh startup: embedder construction, database setup/indexing, and first pipeline case. */
     coldLatencyMs: number;
-    /** Mean retrieve→suppress→pack latency for every case after the cold case. */
+    /** Startup through indexing, excluding the first query pipeline. */
+    setupLatencyMs: number;
+    /** Mean query retrieval → suppression → packing time after the cold case. */
     warmLatencyMs: number | null;
   }>;
 }>;

@@ -40,16 +40,16 @@ type FakePipelineCall = Readonly<{ text: string; pooling: "mean"; normalize: tru
 type FakeRuntime = {
   module: TransformersModule;
   calls: FakePipelineCall[];
-  created: ReadonlyArray<Readonly<{ task: string; model: string }>>;
+  created: ReadonlyArray<Readonly<{ task: string; model: string; dtype: "q8" | undefined }>>;
 };
 
 function createFakeRuntime(outputFactory: () => FeatureExtractionOutput): FakeRuntime {
   const calls: FakePipelineCall[] = [];
-  const created: Array<Readonly<{ task: string; model: string }>> = [];
+  const created: Array<Readonly<{ task: string; model: string; dtype: "q8" | undefined }>> = [];
   const module: TransformersModule = {
     env: {},
-    pipeline: async (task, model) => {
-      created.push({ task, model });
+    pipeline: async (task, model, options) => {
+      created.push({ task, model, dtype: options?.dtype });
       return async (text, options) => {
         calls.push({ text, pooling: options.pooling, normalize: options.normalize });
         return outputFactory();
@@ -128,9 +128,14 @@ test("loads the pipeline locally with remote model access disabled", async () =>
       loadTransformers: () => Promise.resolve(runtime.module),
     });
 
+    expect(runtime.module.env.allowLocalModels).toBe(true);
     expect(runtime.module.env.allowRemoteModels).toBe(false);
     expect(runtime.module.env.localModelPath).toBe(dirname(harness.artifactDirectory));
-    expect(runtime.created).toEqual([{ task: "feature-extraction", model: basename(harness.artifactDirectory) }]);
+    expect(runtime.created).toEqual([{
+      task: "feature-extraction",
+      model: basename(harness.artifactDirectory),
+      dtype: "q8",
+    }]);
 
     const vector = await embed("Prefer the fixture loader over ad-hoc setup.");
     expect(runtime.calls).toHaveLength(1);

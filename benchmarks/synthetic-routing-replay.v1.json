@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "now": "2026-09-07T12:00:00.000Z",
+  "evidenceDecay": { "halfLifeDays": 30, "maxAgeDays": 90 },
+  "gates": { "minEvidenceSamples": 5, "confidenceFloor": 0.5, "utilityMargin": 0.05 },
+  "cases": [
+    {
+      "id": "strong-exact-evidence",
+      "preset": "balanced",
+      "candidates": [
+        { "provider": "acme", "model": "quality", "variant": "default", "capabilities": ["tools"], "privacy": "remote", "available": true, "observedCostUsd": 0.08, "observedLatencyMs": 1200 },
+        { "provider": "acme", "model": "baseline", "variant": "default", "capabilities": ["tools"], "privacy": "remote", "available": true, "observedCostUsd": 0.04, "observedLatencyMs": 900 }
+      ],
+      "currentModel": { "provider": "acme", "model": "baseline", "variant": "default" },
+      "requiredCapabilities": ["tools"], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": null, "maxLatencyMs": null },
+      "targetProfile": { "activity": "implement", "domain": "backend", "complexity": "medium" },
+      "priors": [],
+      "history": [
+        { "model": { "provider": "acme", "model": "quality", "variant": "default" }, "profile": { "activity": "implement", "domain": "backend", "complexity": "medium", "risk": "low", "stack": ["typescript"] }, "ageDays": 0, "count": 2, "signals": [{ "dimension": "quality", "value": 1, "confidence": 1 }, { "dimension": "reliability", "value": 1, "confidence": 1 }, { "dimension": "cost", "value": 0.08, "confidence": 1 }, { "dimension": "latency", "value": 1200, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "baseline", "variant": "default" }, "profile": { "activity": "implement", "domain": "backend", "complexity": "medium", "risk": "low", "stack": ["typescript"] }, "ageDays": 0, "count": 2, "signals": [{ "dimension": "quality", "value": 0.4, "confidence": 1 }, { "dimension": "reliability", "value": 0.7, "confidence": 1 }, { "dimension": "cost", "value": 0.04, "confidence": 1 }, { "dimension": "latency", "value": 900, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "quality", "variant": "default" }, "isEvidenceBacked": true, "rejectedModels": [], "qualityBackoffLevel": 0 }
+    },
+    {
+      "id": "profile-backoff",
+      "preset": "quality",
+      "candidates": [
+        { "provider": "acme", "model": "specialist", "variant": "default", "capabilities": [], "privacy": "remote", "available": true },
+        { "provider": "acme", "model": "generalist", "variant": "default", "capabilities": [], "privacy": "remote", "available": true }
+      ],
+      "currentModel": { "provider": "acme", "model": "generalist", "variant": "default" },
+      "requiredCapabilities": [], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": null, "maxLatencyMs": null },
+      "targetProfile": { "activity": "implement", "domain": "backend", "complexity": "medium" },
+      "priors": [],
+      "history": [
+        { "model": { "provider": "acme", "model": "specialist", "variant": "default" }, "profile": { "activity": "fix", "domain": "backend", "complexity": "high", "risk": "low", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "quality", "value": 0.9, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "generalist", "variant": "default" }, "profile": { "activity": "fix", "domain": "infrastructure", "complexity": "high", "risk": "medium", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "quality", "value": 0.7, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "specialist", "variant": "default" }, "isEvidenceBacked": true, "rejectedModels": [], "qualityBackoffLevel": 2 }
+    },
+    {
+      "id": "thin-evidence-gated",
+      "preset": "balanced",
+      "candidates": [
+        { "provider": "acme", "model": "thin", "variant": "default", "capabilities": [], "privacy": "remote", "available": true },
+        { "provider": "acme", "model": "baseline", "variant": "default", "capabilities": [], "privacy": "remote", "available": true }
+      ],
+      "currentModel": { "provider": "acme", "model": "baseline", "variant": "default" },
+      "requiredCapabilities": [], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": null, "maxLatencyMs": null },
+      "targetProfile": { "activity": "fix", "domain": "backend", "complexity": "low" },
+      "priors": [],
+      "history": [
+        { "model": { "provider": "acme", "model": "thin", "variant": "default" }, "profile": { "activity": "fix", "domain": "backend", "complexity": "low", "risk": "low", "stack": [] }, "ageDays": 0, "count": 1, "signals": [{ "dimension": "quality", "value": 1, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "baseline", "variant": "default" }, "profile": { "activity": "fix", "domain": "backend", "complexity": "low", "risk": "low", "stack": [] }, "ageDays": 0, "count": 1, "signals": [{ "dimension": "quality", "value": 0.5, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "thin", "variant": "default" }, "isEvidenceBacked": false, "rejectedModels": [], "qualityBackoffLevel": 0 }
+    },
+    {
+      "id": "recent-evidence-outweighs-old",
+      "preset": "balanced",
+      "candidates": [
+        { "provider": "acme", "model": "stale", "variant": "default", "capabilities": [], "privacy": "remote", "available": true },
+        { "provider": "acme", "model": "current", "variant": "default", "capabilities": [], "privacy": "remote", "available": true }
+      ],
+      "currentModel": { "provider": "acme", "model": "stale", "variant": "default" },
+      "requiredCapabilities": [], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": null, "maxLatencyMs": null },
+      "targetProfile": { "activity": "implement", "domain": "backend", "complexity": "medium" },
+      "priors": [],
+      "history": [
+        { "model": { "provider": "acme", "model": "stale", "variant": "default" }, "profile": { "activity": "implement", "domain": "backend", "complexity": "medium", "risk": "low", "stack": [] }, "ageDays": 60, "count": 4, "signals": [{ "dimension": "quality", "value": 1, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "stale", "variant": "default" }, "profile": { "activity": "implement", "domain": "backend", "complexity": "medium", "risk": "low", "stack": [] }, "ageDays": 0, "count": 2, "signals": [{ "dimension": "quality", "value": 0, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "current", "variant": "default" }, "profile": { "activity": "implement", "domain": "backend", "complexity": "medium", "risk": "low", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "quality", "value": 0.6, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "current", "variant": "default" }, "isEvidenceBacked": true, "rejectedModels": [], "qualityBackoffLevel": 0 }
+    },
+    {
+      "id": "quality-preset-tradeoff",
+      "preset": "quality",
+      "candidates": [
+        { "provider": "acme", "model": "premium", "variant": "default", "capabilities": [], "privacy": "remote", "available": true },
+        { "provider": "acme", "model": "economical", "variant": "default", "capabilities": [], "privacy": "remote", "available": true }
+      ],
+      "currentModel": { "provider": "acme", "model": "economical", "variant": "default" },
+      "requiredCapabilities": [], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": null, "maxLatencyMs": null },
+      "targetProfile": { "activity": "review", "domain": "backend", "complexity": "high" },
+      "priors": [],
+      "history": [
+        { "model": { "provider": "acme", "model": "premium", "variant": "default" }, "profile": { "activity": "review", "domain": "backend", "complexity": "high", "risk": "high", "stack": [] }, "ageDays": 0, "count": 2, "signals": [{ "dimension": "quality", "value": 0.95, "confidence": 1 }, { "dimension": "reliability", "value": 0.9, "confidence": 1 }, { "dimension": "cost", "value": 0.2, "confidence": 1 }, { "dimension": "latency", "value": 3000, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "economical", "variant": "default" }, "profile": { "activity": "review", "domain": "backend", "complexity": "high", "risk": "high", "stack": [] }, "ageDays": 0, "count": 2, "signals": [{ "dimension": "quality", "value": 0.7, "confidence": 1 }, { "dimension": "reliability", "value": 0.8, "confidence": 1 }, { "dimension": "cost", "value": 0.02, "confidence": 1 }, { "dimension": "latency", "value": 500, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "premium", "variant": "default" }, "isEvidenceBacked": true, "rejectedModels": [], "qualityBackoffLevel": 0 }
+    },
+    {
+      "id": "economy-preset-tradeoff",
+      "preset": "economy",
+      "candidates": [
+        { "provider": "acme", "model": "premium", "variant": "default", "capabilities": [], "privacy": "remote", "available": true },
+        { "provider": "acme", "model": "economical", "variant": "default", "capabilities": [], "privacy": "remote", "available": true }
+      ],
+      "currentModel": { "provider": "acme", "model": "premium", "variant": "default" },
+      "requiredCapabilities": [], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": null, "maxLatencyMs": null },
+      "targetProfile": { "activity": "document", "domain": "documentation", "complexity": "low" },
+      "priors": [],
+      "history": [
+        { "model": { "provider": "acme", "model": "premium", "variant": "default" }, "profile": { "activity": "document", "domain": "documentation", "complexity": "low", "risk": "low", "stack": [] }, "ageDays": 0, "count": 2, "signals": [{ "dimension": "quality", "value": 0.95, "confidence": 1 }, { "dimension": "reliability", "value": 0.9, "confidence": 1 }, { "dimension": "cost", "value": 0.2, "confidence": 1 }, { "dimension": "latency", "value": 3000, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "economical", "variant": "default" }, "profile": { "activity": "document", "domain": "documentation", "complexity": "low", "risk": "low", "stack": [] }, "ageDays": 0, "count": 2, "signals": [{ "dimension": "quality", "value": 0.7, "confidence": 1 }, { "dimension": "reliability", "value": 0.8, "confidence": 1 }, { "dimension": "cost", "value": 0.02, "confidence": 1 }, { "dimension": "latency", "value": 500, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "economical", "variant": "default" }, "isEvidenceBacked": true, "rejectedModels": [], "qualityBackoffLevel": 0 }
+    },
+    {
+      "id": "hard-cost-and-latency-floors",
+      "preset": "quality",
+      "candidates": [
+        { "provider": "acme", "model": "over-limit", "variant": "default", "capabilities": ["tools"], "privacy": "remote", "available": true, "observedCostUsd": 0.5, "observedLatencyMs": 3000 },
+        { "provider": "acme", "model": "within-limit", "variant": "default", "capabilities": ["tools"], "privacy": "remote", "available": true, "observedCostUsd": 0.1, "observedLatencyMs": 1000 }
+      ],
+      "currentModel": { "provider": "acme", "model": "over-limit", "variant": "default" },
+      "requiredCapabilities": ["tools"], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": 0.2, "maxLatencyMs": 2000 },
+      "targetProfile": { "activity": "implement", "domain": "infrastructure", "complexity": "high" },
+      "priors": [],
+      "history": [
+        { "model": { "provider": "acme", "model": "over-limit", "variant": "default" }, "profile": { "activity": "implement", "domain": "infrastructure", "complexity": "high", "risk": "high", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "quality", "value": 1, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "within-limit", "variant": "default" }, "profile": { "activity": "implement", "domain": "infrastructure", "complexity": "high", "risk": "high", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "quality", "value": 0.7, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "within-limit", "variant": "default" }, "isEvidenceBacked": true, "rejectedModels": [{ "provider": "acme", "model": "over-limit", "variant": "default" }], "qualityBackoffLevel": 0 }
+    },
+    {
+      "id": "deterministic-tie",
+      "preset": "balanced",
+      "candidates": [
+        { "provider": "acme", "model": "first", "variant": "default", "capabilities": [], "privacy": "remote", "available": true },
+        { "provider": "acme", "model": "second", "variant": "default", "capabilities": [], "privacy": "remote", "available": true }
+      ],
+      "currentModel": { "provider": "acme", "model": "first", "variant": "default" },
+      "requiredCapabilities": [], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": null, "maxLatencyMs": null },
+      "targetProfile": { "activity": "test", "domain": "backend", "complexity": "medium" },
+      "priors": [],
+      "history": [
+        { "model": { "provider": "acme", "model": "first", "variant": "default" }, "profile": { "activity": "test", "domain": "backend", "complexity": "medium", "risk": "low", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "quality", "value": 0.8, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "second", "variant": "default" }, "profile": { "activity": "test", "domain": "backend", "complexity": "medium", "risk": "low", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "quality", "value": 0.8, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "first", "variant": "default" }, "isEvidenceBacked": false, "rejectedModels": [], "qualityBackoffLevel": 0 }
+    },
+    {
+      "id": "cost-only-confidence-trap",
+      "preset": "balanced",
+      "candidates": [
+        { "provider": "acme", "model": "cheap-uncertain", "variant": "default", "capabilities": [], "privacy": "remote", "available": true },
+        { "provider": "acme", "model": "quality-prior", "variant": "default", "capabilities": [], "privacy": "remote", "available": true }
+      ],
+      "currentModel": { "provider": "acme", "model": "quality-prior", "variant": "default" },
+      "requiredCapabilities": [], "privacyPolicy": "any",
+      "hardLimits": { "maxCostPerTaskUsd": null, "maxLatencyMs": null },
+      "targetProfile": { "activity": "implement", "domain": "security", "complexity": "high" },
+      "priors": [
+        { "provider": "acme", "model": "cheap-uncertain", "variant": "default", "estimates": { "quality": 0.6 } },
+        { "provider": "acme", "model": "quality-prior", "variant": "default", "estimates": { "quality": 0.9 } }
+      ],
+      "history": [
+        { "model": { "provider": "acme", "model": "cheap-uncertain", "variant": "default" }, "profile": { "activity": "implement", "domain": "security", "complexity": "high", "risk": "high", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "cost", "value": 0.01, "confidence": 1 }] },
+        { "model": { "provider": "acme", "model": "quality-prior", "variant": "default" }, "profile": { "activity": "implement", "domain": "security", "complexity": "high", "risk": "high", "stack": [] }, "ageDays": 0, "count": 6, "signals": [{ "dimension": "cost", "value": 0.2, "confidence": 1 }] }
+      ],
+      "expected": { "recommendedModel": { "provider": "acme", "model": "quality-prior", "variant": "default" }, "isEvidenceBacked": false, "knownDivergence": "Current gates can count cost-only evidence as sufficient confidence while quality remains prior-only.", "rejectedModels": [], "qualityBackoffLevel": 3 }
+    }
+  ]
+}

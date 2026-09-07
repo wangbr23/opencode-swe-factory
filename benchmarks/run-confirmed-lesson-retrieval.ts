@@ -3,9 +3,11 @@ import { resolve } from "node:path";
 
 import {
   createLocalLessonEmbedder,
+} from "../src/core/index.js";
+import {
   loadConfirmedLessonRetrievalBenchmarkCorpus,
   runConfirmedLessonRetrievalBenchmark,
-} from "../src/core/index.js";
+} from "./retrieval-benchmark.js";
 
 function artifactDirectoryFromArgs(args: ReadonlyArray<string>): string {
   const index = args.indexOf("--artifacts");
@@ -20,8 +22,10 @@ async function main(): Promise<void> {
   const artifactDirectory = artifactDirectoryFromArgs(process.argv.slice(2));
   const corpusPath = resolve(import.meta.dir, "confirmed-lesson-retrieval.v1.json");
   const corpus = loadConfirmedLessonRetrievalBenchmarkCorpus(readFileSync(corpusPath, "utf8"));
-  const embed = await createLocalLessonEmbedder({ artifactDirectory });
-  const result = await runConfirmedLessonRetrievalBenchmark({ corpus, embed });
+  const result = await runConfirmedLessonRetrievalBenchmark({
+    corpus,
+    createEmbed: () => createLocalLessonEmbedder({ artifactDirectory }),
+  });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 

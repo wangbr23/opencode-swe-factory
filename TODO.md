@@ -68,7 +68,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T60` Implement allowlist, capability, privacy, budget, and latency eligibility filters — agent, complexity: complex, depends-on: T2, T18, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T61` Implement quality-led utility presets and deterministic model ranking — agent, complexity: complex, depends-on: T20, T60, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T62` Implement cold-start priors and evidence-gated recommendations — agent, complexity: complex, depends-on: T61, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T63` Build the synthetic routing replay benchmark — agent, complexity: complex, depends-on: T62, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T63` Build the synthetic routing replay benchmark — agent, complexity: complex, depends-on: T62, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T64` Implement post-V1 routing pin, one-shot override, and return-to-auto state — agent, complexity: complex, depends-on: T5, T21, T93, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [ ] `T65` Add the model-mutation runtime probe and immediate/following-turn contracts — agent, complexity: complex, depends-on: T4, T64, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T66` Implement bounded low-risk exploration with budget and disclosure rules — agent, complexity: complex, depends-on: T23, design: docs/designs/2026-09-03-coding-memory-model-router.md

@@ -6,6 +6,7 @@ import { DEFAULT_EMBEDDING_MODEL } from "../types/config-types.js";
 // embedding supply-chain risk in the design document), never a casual update.
 export const PINNED_EMBEDDING_MODEL_ID = DEFAULT_EMBEDDING_MODEL;
 export const PINNED_EMBEDDING_MODEL_REVISION = "751bff37182d3f1213fa05d7196b954e230abad9";
+export const PINNED_EMBEDDING_DTYPE = "q8";
 export const PINNED_EMBEDDING_ARTIFACT_BASE_URL = `https://huggingface.co/${PINNED_EMBEDDING_MODEL_ID}/resolve/${PINNED_EMBEDDING_MODEL_REVISION}`;
 
 export const PINNED_EMBEDDING_ARTIFACTS: ReadonlyArray<PinnedEmbeddingArtifact> = [

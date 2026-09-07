@@ -6,6 +6,7 @@
 import type { PinnedEmbeddingArtifact } from "./embedding-artifact-types.js";
 
 export type TransformersEnv = {
+  allowLocalModels?: boolean;
   allowRemoteModels?: boolean;
   localModelPath?: string;
 };
@@ -24,7 +25,7 @@ export type TransformersModule = {
   pipeline: (
     task: "feature-extraction",
     model: string,
-    options?: Readonly<{ progress_callback?: () => void }>,
+    options?: Readonly<{ dtype?: "q8"; progress_callback?: () => void }>,
   ) => Promise<FeatureExtractionPipeline>;
 };
 

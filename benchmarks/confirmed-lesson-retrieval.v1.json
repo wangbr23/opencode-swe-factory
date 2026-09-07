@@ -1,24 +1,297 @@
 {
   "schemaVersion": 1,
   "lessons": [
-    { "lessonId": "global-commit", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Verify commits", "body": "Run bun test and bun run typecheck before committing changes.", "rationale": "Tests prevent regressions.", "applicability": { "activity": ["implement"] }, "active": true }] },
-    { "lessonId": "project-commit", "scope": "project", "projectId": "alpha", "versions": [{ "version": 1, "title": "Alpha commit check", "body": "Run bun test and bun run typecheck before committing changes.", "rationale": "Alpha requires both checks.", "applicability": { "activity": ["implement"] }, "active": true }] },
-    { "lessonId": "project-other-commit", "scope": "project", "projectId": "other", "versions": [{ "version": 1, "title": "Other project commit check", "body": "Run bun test and bun run typecheck before committing changes.", "rationale": "Must never cross project boundaries.", "applicability": { "activity": ["implement"] }, "active": true }] },
-    { "lessonId": "global-paraphrase", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Validate before saving", "body": "Execute the automated checks before saving a code change.", "rationale": "Validation catches mistakes.", "applicability": {}, "active": true }] },
-    { "lessonId": "global-node-test", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Node test command", "body": "Use bun test for TypeScript test failures.", "rationale": "The project uses Bun.", "applicability": { "activity": ["test"], "stack": ["typescript"] }, "active": true }] },
-    { "lessonId": "global-python-test", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Python test command", "body": "Use pytest for Python test failures.", "rationale": "Python projects use pytest.", "applicability": { "activity": ["test"], "stack": ["python"] }, "active": true }] },
-    { "lessonId": "global-near-neighbor", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Commit message style", "body": "Write a concise commit message after changes.", "rationale": "Messages should be readable.", "applicability": {}, "active": true }] },
-    { "lessonId": "global-superseded", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Old test command", "body": "Run npm test before committing.", "rationale": "Old correction.", "applicability": {}, "active": false }, { "version": 2, "title": "Current test command", "body": "Run bun test before committing.", "rationale": "Current correction.", "applicability": {}, "active": true }] },
-    { "lessonId": "global-conflict-a", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Conflict winner", "body": "Use one explicit database migration transaction for schema changes.", "rationale": "Transactions preserve consistency.", "applicability": {}, "active": true }] },
-    { "lessonId": "global-conflict-b", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Conflict loser", "body": "Use one explicit database migration transaction for schema updates.", "rationale": "Alternative correction awaiting review.", "applicability": {}, "active": true }] },
-    { "lessonId": "global-budget-long", "scope": "global", "projectId": null, "versions": [{ "version": 1, "title": "Long context lesson", "body": "Keep this intentionally long explanation available only when the token budget permits it. It describes validation, migration safety, project isolation, and review requirements in enough detail to exceed the pressure-case budget.", "rationale": "Exercises budget exclusion.", "applicability": {}, "active": true }] }
+    {
+      "lessonId": "global-sql-parameters",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{
+        "version": 1,
+        "title": "Bind SQL values",
+        "body": "Bind SQL values through parameters instead of assembling query strings.",
+        "rationale": "Parameter binding prevents injection.",
+        "applicability": {},
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-superseded",
+      "scope": "global",
+      "projectId": null,
+      "versions": [
+        {
+          "version": 1,
+          "title": "Legacy command",
+          "body": "Run npm test before committing.",
+          "rationale": "Old correction.",
+          "applicability": {},
+          "createdAt": "2025-01-01T00:00:00.000Z",
+          "active": false
+        },
+        {
+          "version": 2,
+          "title": "Current command",
+          "body": "Run bun test before committing.",
+          "rationale": "Current correction.",
+          "applicability": {},
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "active": true
+        }
+      ]
+    },
+    {
+      "lessonId": "project-commit-alpha",
+      "scope": "project",
+      "projectId": "alpha",
+      "versions": [{
+        "version": 1,
+        "title": "Alpha commit check",
+        "body": "Run bun test and bun run typecheck before committing changes.",
+        "rationale": "Alpha requires both checks.",
+        "applicability": { "activity": ["implement"] },
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "project-commit-other",
+      "scope": "project",
+      "projectId": "other",
+      "versions": [{
+        "version": 1,
+        "title": "Other project check",
+        "body": "Run bun test and bun run typecheck before committing changes.",
+        "rationale": "Must not cross project boundaries.",
+        "applicability": { "activity": ["implement"] },
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-commit",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{
+        "version": 1,
+        "title": "Global commit check",
+        "body": "Run bun test and bun run typecheck before committing changes.",
+        "rationale": "Tests prevent regressions.",
+        "applicability": { "activity": ["implement"] },
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-node-test",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{
+        "version": 1,
+        "title": "Node test command",
+        "body": "Use bun test for TypeScript test failures.",
+        "rationale": "The project uses Bun.",
+        "applicability": { "activity": ["test"], "languages": ["typescript"] },
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-python-test",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{
+        "version": 1,
+        "title": "Python test command",
+        "body": "Use pytest for Python test failures.",
+        "rationale": "Python projects use pytest.",
+        "applicability": { "activity": ["test"], "languages": ["python"] },
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-conflict-a",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{
+        "version": 1,
+        "title": "Conflict winner",
+        "body": "Use one explicit database migration transaction for schema changes.",
+        "rationale": "Transactions preserve consistency.",
+        "applicability": {},
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-conflict-b",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{
+        "version": 1,
+        "title": "Conflict loser",
+        "body": "Use one explicit database migration transaction for schema updates.",
+        "rationale": "Alternative correction awaiting review.",
+        "applicability": {},
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-stale-active",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{
+        "version": 1,
+        "title": "Stale active review rule",
+        "body": "Review legacy deployment manifests before editing them.",
+        "rationale": "This remains confirmed but is intentionally old.",
+        "applicability": {},
+        "createdAt": "2020-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-budget-long",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{
+        "version": 1,
+        "title": "Long context lesson",
+        "body": "Keep this intentionally long explanation available only when the token budget permits it. It describes validation, migration safety, project isolation, and review requirements in enough detail to exceed the pressure-case budget.",
+        "rationale": "Exercises budget exclusion.",
+        "applicability": {},
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "active": true
+      }]
+    },
+    {
+      "lessonId": "global-neighbor-01",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form labels", "body": "Use accessible labels with concise wording.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-02",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form focus", "body": "Restore keyboard focus after closing a dialog.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-03",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form errors", "body": "Display errors beside invalid input.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-04",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form layout", "body": "Arrange controls vertically on narrow screens.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-05",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form copy", "body": "Write direct instructional copy.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-06",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form validation", "body": "Validate values after each input change.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-07",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form help", "body": "Place short help text below controls.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-08",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form state", "body": "Preserve entered values after recoverable errors.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-09",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form buttons", "body": "Disable buttons while requests are pending.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    },
+    {
+      "lessonId": "global-neighbor-10",
+      "scope": "global",
+      "projectId": null,
+      "versions": [{ "version": 1, "title": "Form reset", "body": "Retain values after a failed request.", "rationale": "Near neighbor.", "applicability": {}, "createdAt": "2026-01-01T00:00:00.000Z", "active": true }]
+    }
   ],
   "cases": [
-    { "id": "exact-match", "projectId": "beta", "query": "run bun test before committing", "taskProfile": { "activity": "implement" }, "tokenBudget": 500, "relevantLessonIds": ["global-commit", "global-superseded"], "expectedSuppressedLessonIds": [] },
-    { "id": "semantic-paraphrase", "projectId": "beta", "query": "verify code before saving work", "tokenBudget": 500, "relevantLessonIds": ["global-paraphrase"], "expectedSuppressedLessonIds": [] },
-    { "id": "project-over-global", "projectId": "alpha", "query": "run bun test and typecheck before committing", "taskProfile": { "activity": "implement" }, "tokenBudget": 500, "relevantLessonIds": ["project-commit"], "expectedSuppressedLessonIds": ["global-commit"] },
-    { "id": "applicability-mismatch", "projectId": "beta", "query": "TypeScript test failure", "taskProfile": { "activity": "test", "stack": ["typescript"] }, "tokenBudget": 500, "relevantLessonIds": ["global-node-test"], "expectedSuppressedLessonIds": [] },
-    { "id": "unresolved-conflict", "projectId": "beta", "query": "database migration transaction", "tokenBudget": 500, "relevantLessonIds": ["global-conflict-a"], "expectedSuppressedLessonIds": ["global-conflict-b"] },
-    { "id": "budget-pressure", "projectId": "beta", "query": "long context lesson", "tokenBudget": 10, "relevantLessonIds": ["global-budget-long"], "expectedSuppressedLessonIds": [] }
+    {
+      "id": "semantic-paraphrase",
+      "projectId": "beta",
+      "query": "Placeholders protect hostile field inputs",
+      "tokenBudget": 2000,
+      "relevantLessonIds": ["global-sql-parameters"],
+      "expectedSuppressedLessonIds": [],
+      "expectedPackedLessonIds": ["global-sql-parameters"]
+    },
+    {
+      "id": "active-version",
+      "projectId": "beta",
+      "query": "Current bun test command",
+      "tokenBudget": 2000,
+      "relevantLessonIds": ["global-superseded"],
+      "expectedSuppressedLessonIds": [],
+      "expectedPackedLessonIds": ["global-superseded"]
+    },
+    {
+      "id": "project-over-global",
+      "projectId": "alpha",
+      "query": "Run bun test and typecheck before committing",
+      "taskProfile": { "activity": "implement" },
+      "tokenBudget": 2000,
+      "relevantLessonIds": ["project-commit-alpha"],
+      "expectedSuppressedLessonIds": ["global-commit"],
+      "expectedPackedLessonIds": ["project-commit-alpha"]
+    },
+    {
+      "id": "applicability-mismatch",
+      "projectId": "beta",
+      "query": "TypeScript test failure",
+      "taskProfile": { "activity": "test", "stack": ["typescript"] },
+      "tokenBudget": 2000,
+      "relevantLessonIds": ["global-node-test"],
+      "expectedSuppressedLessonIds": [],
+      "expectedPackedLessonIds": ["global-node-test"]
+    },
+    {
+      "id": "unresolved-conflict",
+      "projectId": "beta",
+      "query": "database migration transaction",
+      "tokenBudget": 2000,
+      "relevantLessonIds": ["global-conflict-a"],
+      "expectedSuppressedLessonIds": ["global-conflict-b"],
+      "expectedPackedLessonIds": ["global-conflict-a"]
+    },
+    {
+      "id": "stale-active",
+      "projectId": "beta",
+      "query": "review legacy deployment manifests",
+      "tokenBudget": 2000,
+      "relevantLessonIds": ["global-stale-active"],
+      "expectedSuppressedLessonIds": [],
+      "expectedPackedLessonIds": ["global-stale-active"]
+    },
+    {
+      "id": "budget-exclusion",
+      "projectId": "beta",
+      "query": "long context lesson",
+      "tokenBudget": 5,
+      "relevantLessonIds": ["global-budget-long"],
+      "expectedSuppressedLessonIds": [],
+      "expectedPackedLessonIds": []
+    }
   ]
 }
