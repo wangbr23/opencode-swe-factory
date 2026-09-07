@@ -28,6 +28,7 @@ export * from "./model-ranking.js";
 export * from "./model-recommendation.js";
 export * from "./lesson-duplicate-detection.js";
 export * from "./lesson-maintenance-digest.js";
+export * from "./lesson-proposal-triggers.js";
 export * from "./lesson-retrieval.js";
 export * from "./lesson-supersession.js";
 export * from "./lesson-usage-tracking.js";

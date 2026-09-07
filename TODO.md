@@ -64,7 +64,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T56` Add the CLI feedback-recording command — agent, complexity: simple, depends-on: T27, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T57` Add the OpenCode explicit-feedback tool — agent, complexity: simple, depends-on: T4, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T58` Add the CLI evidence-inspection command — agent, complexity: simple, depends-on: T27, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T59` Implement strong-signal and repeated-success lesson proposals without silence inference — agent, complexity: complex, depends-on: T38, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T59` Implement strong-signal and repeated-success lesson proposals without silence inference — agent, complexity: complex, depends-on: T38, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T60` Implement allowlist, capability, privacy, budget, and latency eligibility filters — agent, complexity: complex, depends-on: T2, T18, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T61` Implement quality-led utility presets and deterministic model ranking — agent, complexity: complex, depends-on: T20, T60, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T62` Implement cold-start priors and evidence-gated recommendations — agent, complexity: complex, depends-on: T61, design: docs/designs/2026-09-03-coding-memory-model-router.md
