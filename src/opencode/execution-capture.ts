@@ -22,7 +22,20 @@ export type {
 } from "../types/execution-capture-types.js";
 
 export function createExecutionCaptureState(): ExecutionCaptureState {
-  return { recordedMessageIds: new Set() };
+  return { recordedMessageIds: new Set(), variantBySession: new Map() };
+}
+
+/**
+ * Remembers the variant the session selected for generation so the next
+ * assistant completion in that session can record it. Assistant messages in
+ * the supported OpenCode version carry no variant of their own.
+ */
+export function recordSessionVariant(
+  state: ExecutionCaptureState,
+  sessionId: string,
+  variant: string,
+): void {
+  state.variantBySession.set(sessionId, variant);
 }
 
 function buildExecutionInput(
@@ -36,6 +49,7 @@ function buildExecutionInput(
     taskId,
     provider: input.provider,
     model: input.model,
+    ...(input.variant !== undefined ? { variant: input.variant } : {}),
     agent: input.agent,
     selectionSource: CAPTURE.selectionSourceHost,
     toolProfile: {},

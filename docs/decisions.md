@@ -191,3 +191,13 @@ Append-only log of architecture decisions. One entry per decision, newest at the
 **Decision:** Benchmark harnesses, corpora, and runners live under benchmarks/ with tests importing them from there; core exports only library surface. The retrieval harness takes a lazy `createEmbed` factory instead of an `embed` function, so embedding setup (artifact verification, runtime load) happens only when a run actually starts, and the run script owns the artifact-directory flag. The embedder pins `PINNED_EMBEDDING_DTYPE = "q8"` alongside the pinned model revision, so artifact bytes, revision, and quantization are pinned together. The T63 synthetic routing replay was built to this layout from the start.
 
 **Consequences:** The package's public API shrinks (retrieval-benchmark exports removed from core); any external consumer of the harness would import from the benchmarks path, which is not published — acceptable because it is a repo-local measurement surface. Real benchmark runs remain network-free by construction (`allowRemoteModels = false`) and require checksum-verified artifacts. Future benchmarks (T92 acceptance scenarios aside) should follow the same placement and lazy-factory pattern.
+
+## 2026-09-07 — Session-selected variants are threaded into recorded execution profiles
+
+**Status:** Accepted
+
+**Context:** Evidence aggregation attributes outcome signals to an exact provider/model/variant, but OpenCode 1.18.27's `AssistantMessage` (the completion event the plugin captures) carries no variant field, so recorded execution profiles had `variant = NULL`. Because allowlist candidates always carry a non-null variant string, the exact-variant evidence match in `loadModelEvidenceItems` could never aggregate plugin-captured evidence — making the V1 evidence loop unreachable through live use and blocking T92's acceptance scenario.
+
+**Decision:** The plugin remembers the variant each session selected for generation (`chat.message` input's `variant`) and threads it into that session's subsequent assistant-completion execution profiles. This mirrors how the routing receipt already resolves the host-selected model's variant, and it is the adapter's best available source of generation-time variant truth in the supported OpenCode version. Sessions that never select a variant still record `variant = NULL`, matching nothing until a future compatibility probe (T65) supplies exact variants.
+
+**Consequences:** Plugin-captured evidence can now back recommendations for exact model/variant pairs. If a session's variant changes between message turns, the next completion records the latest selection; concurrent generations within one session with different variants are out of scope for V1 (evidence lands under the most recently selected variant).

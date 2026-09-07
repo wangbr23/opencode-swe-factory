@@ -19,6 +19,13 @@ export type AssistantCompletionInput = Readonly<{
   agent: string;
   provider: string;
   model: string;
+  /**
+   * OpenCode 1.18.27 assistant messages carry no variant, so the adapter
+   * threads the variant the session selected for generation (chat.message
+   * input.variant) into the recorded profile. Evidence aggregation matches
+   * on exact model/variant, so omitting it would strand all evidence.
+   */
+  variant?: string;
   costUsd: number;
   tokens: AssistantCompletionTokens;
   startedAtMs: number;
@@ -48,4 +55,5 @@ export type HandleAssistantCompletionResult =
 
 export type ExecutionCaptureState = Readonly<{
   recordedMessageIds: Set<string>;
+  variantBySession: Map<string, string>;
 }>;

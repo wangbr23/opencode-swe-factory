@@ -33,6 +33,7 @@ import {
 import {
   createExecutionCaptureState,
   handleAssistantCompletion,
+  recordSessionVariant,
 } from "./execution-capture.js";
 import {
   createToolOutcomeCaptureState,
@@ -140,6 +141,9 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
         const sessionId = input.sessionID;
         const session = getOrCreateSessionToggles(sessionTogglesMap, sessionId);
         const toggles = resolveToggles(config, session);
+        if (input.variant !== undefined) {
+          recordSessionVariant(executionCaptureState, sessionId, input.variant);
+        }
         const messageText = extractMessageText(
           output.parts as ReadonlyArray<{ type: string; text?: string }>,
         );
@@ -265,6 +269,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
 
         const session = getOrCreateSessionToggles(sessionTogglesMap, info.sessionID);
         const toggles = resolveToggles(config, session);
+        const sessionVariant = executionCaptureState.variantBySession.get(info.sessionID);
 
         handleAssistantCompletion(
           executionCaptureState,
@@ -277,6 +282,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
             agent: info.mode,
             provider: info.providerID,
             model: info.modelID,
+            ...(sessionVariant !== undefined ? { variant: sessionVariant } : {}),
             costUsd: info.cost,
             tokens: {
               input: info.tokens.input,

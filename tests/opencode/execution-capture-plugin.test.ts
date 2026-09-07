@@ -106,3 +106,19 @@ test("plugin event hook ignores non-assistant and unrelated events", () =>
       ).all(),
     ).toHaveLength(0);
   }));
+
+test("plugin event hook records the session's selected variant on completion profiles", () =>
+  withPlugin(async ({ hooks, connection }) => {
+    const msg = chatInput("session-1", "Fix the login bug");
+    await hooks["chat.message"]?.(
+      { ...msg.input, variant: "thinking" },
+      msg.output,
+    );
+    await hooks.event?.({ event: createAssistantCompletionEvent({ completedAtMs: COMPLETED_AT }) });
+
+    const profiles = connection.database
+      .query<{ variant: string | null }, []>("SELECT variant FROM execution_profiles")
+      .all();
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0]?.variant).toBe("thinking");
+  }));
