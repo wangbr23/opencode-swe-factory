@@ -29,7 +29,7 @@ export function estimateTokenCount(text: string): number {
 
 function formatSingleLesson(lesson: RetrievedLesson): string {
   const scopeTag = lesson.scope === "project" ? "project" : "global";
-  return `### ${lesson.title} [${scopeTag}]\n${lesson.body}\n`;
+  return `### ${lesson.title} [${scopeTag}] [lesson ${lesson.lessonId} v${lesson.version}]\n${lesson.body}\n`;
 }
 
 export function packLessonContext(input: PackLessonContextInput): PackLessonContextResult {

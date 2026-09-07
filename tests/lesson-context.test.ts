@@ -52,6 +52,7 @@ test("single lesson within budget is packed", () => {
   expect(result.packed[0]!.body).toBe("Body of lesson L1");
   expect(result.block).toContain("## Confirmed Lessons");
   expect(result.block).toContain("### Lesson L1 [global]");
+  expect(result.block).toContain("[lesson L1 v1]");
   expect(result.block).toContain("Body of lesson L1");
   expect(result.receipt.packedCount).toBe(1);
   expect(result.receipt.excludedByBudgetCount).toBe(0);
@@ -204,7 +205,7 @@ test("estimateTokenCount heuristic produces reasonable values", () => {
   expect(estimateTokenCount("a".repeat(100))).toBe(25);
 });
 
-test("block format includes header and scope tags", () => {
+test("block format includes header, scope tags, and stable lesson citations", () => {
   const lessons = [
     makeLessonResult({ lessonId: "L1", scope: "project", projectId: "P1", title: "Project Rule" }),
     makeLessonResult({ lessonId: "L2", scope: "global", title: "Global Rule" }),
@@ -217,7 +218,9 @@ test("block format includes header and scope tags", () => {
 
   expect(result.block.startsWith("## Confirmed Lessons")).toBe(true);
   expect(result.block).toContain("### Project Rule [project]");
+  expect(result.block).toContain("[lesson L1 v1]");
   expect(result.block).toContain("### Global Rule [global]");
+  expect(result.block).toContain("[lesson L2 v1]");
 });
 
 test("mixed suppressed and budget-excluded are both in excluded list", () => {
