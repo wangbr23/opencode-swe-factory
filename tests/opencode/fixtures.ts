@@ -149,6 +149,7 @@ export type PluginTestContext = {
   hooks: ReturnType<typeof composePluginHooks>;
   connection: SqliteConnection;
   projectId: string;
+  diagnosticsPath: string;
   getTool: (name: string) => ToolDefinition;
 };
 
@@ -156,6 +157,7 @@ export function withPlugin(
   run: (ctx: PluginTestContext) => void | Promise<void>,
   overrides?: {
     compatibility?: OpenCodeCompatibility;
+    config?: PluginDependencies["config"];
   },
 ): Promise<void> {
   const directory = mkdtempSync(
@@ -170,7 +172,7 @@ export function withPlugin(
 
   const deps: PluginDependencies = {
     connection,
-    config: createDefaultConfig(),
+    config: overrides?.config ?? createDefaultConfig(),
     projectId: projectResult.project.id,
     compatibility: overrides?.compatibility ?? {
       status: "supported",
@@ -190,6 +192,7 @@ export function withPlugin(
     hooks,
     connection,
     projectId: projectResult.project.id,
+    diagnosticsPath: directory,
     getTool,
   });
   const cleanup = () => {
@@ -224,7 +227,12 @@ export function textOf(result: Awaited<ReturnType<ToolDefinition["execute"]>>): 
   return typeof result === "string" ? result : result.output;
 }
 
-export function chatInput(sessionId: string, text: string, messageId = "msg-1", agent = "build") {
+export function chatInput(
+  sessionId: string,
+  text: string,
+  messageId = "msg-1",
+  agent = "build",
+) {
   return {
     input: { sessionID: sessionId, messageID: messageId, agent },
     output: {

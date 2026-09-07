@@ -26,7 +26,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T18` Implement the versioned task taxonomy and deterministic profiler — agent, complexity: complex, depends-on: T2, T6, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T19` Capture assistant-completion execution profiles and provider outcomes — agent, complexity: complex, depends-on: T32, T53, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T20` Implement decayed evidence aggregation with profile backoff and uncertainty — agent, complexity: complex, depends-on: T18, T54, T55, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T21` Integrate recommendation mode and compact routing receipts with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, T53, T62, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T21` Integrate recommendation mode and compact routing receipts with OpenCode — agent, complexity: complex, depends-on: T4, T5, T46, T53, T62, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T22` Approve post-V1 automatic-routing confidence, utility, latency, and exploration thresholds — manual, depends-on: T63, T65, T93, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [ ] `T23` Implement compatibility-gated automatic model routing — agent, complexity: complex, depends-on: T22, T65, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T24` Implement the stale, unused, duplicate, and conflict maintenance digest — agent, complexity: complex, depends-on: T35, T46, T54, design: docs/designs/2026-09-03-coding-memory-model-router.md

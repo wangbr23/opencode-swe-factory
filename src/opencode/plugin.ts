@@ -37,6 +37,11 @@ import {
 import { handleProposeLesson, handleCommitLesson } from "./lesson-tools.js";
 import { formatApprovalCard } from "./approval-flow.js";
 import {
+  computeRoutingReceipt,
+  createRoutingReceiptState,
+  describeRoutingReceipt,
+} from "./routing-receipt.js";
+import {
   createTaskBoundaryState,
   extractMessageText,
   handleTaskBoundary,
@@ -109,13 +114,14 @@ function buildInjectionInput(
 }
 
 export function composePluginHooks(deps: PluginDependencies): Hooks {
-  const { connection, config, projectId, compatibility } = deps;
+  const { connection, config, projectId, compatibility, diagnosticsPath } = deps;
   const injectionEnabled = compatibility.status === "supported";
 
   const injectionState = createInjectionState();
   const taskBoundaryState = createTaskBoundaryState();
   const executionCaptureState = createExecutionCaptureState();
   const toolOutcomeCaptureState = createToolOutcomeCaptureState();
+  const routingReceiptState = createRoutingReceiptState();
   const sessionTogglesMap = new Map<string, OpenCodeSessionToggles>();
 
   const hooks: Hooks = {
@@ -132,7 +138,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
           output.parts as ReadonlyArray<{ type: string; text?: string }>,
         );
 
-        await handleTaskBoundary(
+        const boundaryResult = await handleTaskBoundary(
           taskBoundaryState,
           connection,
           toggles,
@@ -156,6 +162,46 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
                 query,
                 projectId: pid,
               }),
+          );
+        }
+
+        const receiptResult = computeRoutingReceipt(connection, toggles, {
+          mode: config.routing.mode,
+          preset: config.routing.preset,
+          allowlist: config.routing.allowlist,
+          hardLimits: config.routing.hardLimits,
+          gates: config.routing.gates,
+          priors: config.routing.priors,
+          ...(input.model && input.variant
+            ? {
+                currentModel: {
+                  provider: input.model.providerID,
+                  model: input.model.modelID,
+                  variant: input.variant,
+                },
+              }
+            : {}),
+          ...(boundaryResult.status === "started"
+            ? {
+                targetProfile: {
+                  activity: boundaryResult.profile.activity,
+                  domain: boundaryResult.profile.domain,
+                  complexity: boundaryResult.profile.complexity,
+                },
+              }
+            : {}),
+        });
+
+        if (receiptResult.status === "computed") {
+          routingReceiptState.lastBySession.set(sessionId, receiptResult.receipt);
+          await writeLocalDiagnostic(
+            {
+              component: "routing",
+              code: "routing-receipt",
+              severity: "info",
+              summary: describeRoutingReceipt(receiptResult.receipt),
+            },
+            { filePath: join(diagnosticsPath, "diagnostics.jsonl") },
           );
         }
       } catch {
@@ -346,6 +392,19 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
             return `Lesson ${args.decision}d successfully.`;
           }
           return `Lesson commit failed: ${result.error}`;
+        },
+      }),
+
+      swe_factory_get_recommendation: tool({
+        description:
+          "Show the last model-routing receipt for this session: the recommended model, why it wins, and the evidence gates. Recommendation mode never changes the model used.",
+        args: {},
+        async execute(_args, context) {
+          const receipt = routingReceiptState.lastBySession.get(context.sessionID);
+          if (!receipt) {
+            return "No routing receipt has been computed for this session yet. Receipts are computed per incoming message when routing is enabled and the model allowlist is configured.";
+          }
+          return JSON.stringify(receipt, null, 2);
         },
       }),
 
