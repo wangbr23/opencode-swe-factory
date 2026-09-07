@@ -88,11 +88,13 @@ function rankWithLoader(
   eligible: ReadonlyArray<EligibleModelCandidate>,
   summaries: ReadonlyArray<DecayedEvidenceSummary>,
   preset: Parameters<typeof rankEligibleModels>[1]["preset"] = "balanced",
+  priors?: Parameters<typeof rankEligibleModels>[1]["priors"],
 ): ReadonlyArray<RankedModelCandidate> {
   const { ranked } = rankEligibleModels(undefined as never, {
     eligible,
     preset,
     now: NOW,
+    ...(priors === undefined ? {} : { priors }),
     loadEvidence: (candidate) => {
       const summary = summaries.find(
         (entry) =>
@@ -268,6 +270,93 @@ test("candidates without any evidence score 0 and keep their input order", () =>
       expect(contribution.normalizedWeight).toBeNull();
     }
   }
+});
+
+test("cold-start priors fill evidence-free dimensions at the coarsest backoff weight", () => {
+  const priorBacked = makeEligible({ model: "prior-backed" });
+  const unknown = makeEligible({ model: "unknown" });
+  const ranked = rankWithLoader(
+    [priorBacked, unknown],
+    [partialSummary(priorBacked, {}), partialSummary(unknown, {})],
+    "balanced",
+    [{ provider: "acme", model: "prior-backed", variant: "default", estimates: { quality: 0.9, cost: 0.01 } }],
+  );
+
+  expect(ranked[0]?.model).toBe("prior-backed");
+  // Renormalization cancels the coarse-level discount when every contributing
+  // dimension shares it: utility is the plain preset-weighted prior average.
+  expect(ranked[0]?.utility).toBeCloseTo((0.5 * 0.9 + 0.15 * 1) / 0.65, 10);
+  const priorQuality = contributionOf(ranked[0], "quality");
+  expect(priorQuality.backoffLevel).toBe(3);
+  expect(priorQuality.sampleCount).toBe(0);
+  expect(priorQuality.effectiveWeight).toBeCloseTo(0.5 * 0.25, 10);
+  expect(ranked[1]?.model).toBe("unknown");
+  expect(ranked[1]?.utility).toBe(0);
+});
+
+test("recorded evidence overrides priors dimension by dimension", () => {
+  const hybrid = makeEligible({ model: "hybrid" });
+  const summary = makeSummary(hybrid, [
+    makeEstimate("quality", { mean: 0.2, sampleCount: 2, effectiveSampleSize: 2 }),
+    makeEstimate("reliability"),
+  ]);
+  const ranked = rankWithLoader(
+    [hybrid],
+    [summary],
+    "balanced",
+    [{ provider: "acme", model: "hybrid", variant: "default", estimates: { quality: 0.9, reliability: 1 } }],
+  );
+
+  const quality = contributionOf(ranked[0], "quality");
+  expect(quality.score).toBe(0.2);
+  expect(quality.sampleCount).toBe(2);
+  expect(quality.backoffLevel).toBe(0);
+  const reliability = contributionOf(ranked[0], "reliability");
+  expect(reliability.score).toBe(1);
+  expect(reliability.sampleCount).toBe(0);
+  expect(reliability.backoffLevel).toBe(3);
+});
+
+test("rankEligibleModels validates priors", () => {
+  const eligible = [makeEligible()];
+  const first = eligible[0];
+  if (!first) {
+    throw new Error("fixture eligible list is empty");
+  }
+  const base = { eligible, preset: "balanced" as const, now: NOW, loadEvidence: () => partialSummary(first, {}) };
+  expect(() =>
+    rankEligibleModels(undefined as never, {
+      ...base,
+      priors: [{ provider: "acme", model: "model-a", variant: "default", estimates: { charm: 1 } as never }],
+    }),
+  ).toThrow(ModelRankingInputError);
+  expect(() =>
+    rankEligibleModels(undefined as never, {
+      ...base,
+      priors: [{ provider: "acme", model: "model-a", variant: "default", estimates: { quality: 1.5 } }],
+    }),
+  ).toThrow(ModelRankingInputError);
+  expect(() =>
+    rankEligibleModels(undefined as never, {
+      ...base,
+      priors: [{ provider: "acme", model: "model-a", variant: "default", estimates: { cost: -1 } }],
+    }),
+  ).toThrow(ModelRankingInputError);
+  expect(() =>
+    rankEligibleModels(undefined as never, {
+      ...base,
+      priors: [
+        { provider: "acme", model: "model-a", variant: "default", estimates: {} },
+        { provider: "acme", model: "model-a", variant: "default", estimates: { quality: 0.5 } },
+      ],
+    }),
+  ).toThrow(ModelRankingInputError);
+  expect(() =>
+    rankEligibleModels(undefined as never, {
+      ...base,
+      priors: [{ provider: "acme", model: "model-a", estimates: {} } as never],
+    }),
+  ).toThrow(ModelRankingInputError);
 });
 
 test("ranking is utility-descending and exact ties preserve input order", () => {

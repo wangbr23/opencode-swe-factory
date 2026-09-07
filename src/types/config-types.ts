@@ -1,8 +1,24 @@
+import type { OutcomeDimension } from "./execution-profile-types.js";
+
 export const CONFIG_SCHEMA_VERSION = 1 as const;
 
 export const DEFAULT_EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
 
 export const DEFAULT_ALLOWLIST: ReadonlyArray<ModelAllowlistEntry> = [];
+
+export const DEFAULT_ROUTING_PRIORS: ReadonlyArray<ModelPriorEntry> = [];
+
+/**
+ * Pre-benchmark placeholder thresholds pending the manual approval in T22.
+ * They only label recommendations in V1 (recommendation mode never mutates
+ * the active model), so conservative values that treat thin evidence as
+ * not-yet-evidence-backed are the safe starting point.
+ */
+export const DEFAULT_ROUTING_GATES: RoutingGatesConfig = Object.freeze({
+  minEvidenceSamples: 5,
+  confidenceFloor: 0.5,
+  utilityMargin: 0.05,
+});
 
 export const DEFAULT_CURATED_PATHS = [
   "AGENTS.md",
@@ -32,6 +48,35 @@ export type ModelAllowlistEntry = Readonly<{
   privacy: "local" | "remote";
 }>;
 
+/**
+ * Cold-start prior estimates for one exact provider/model/variant, sourced
+ * only from user judgment of OpenCode model capabilities and published
+ * pricing — never from recorded evidence. Any dimension may be omitted.
+ * `quality`/`reliability` are 0-1 scores, `cost` is USD per task, and
+ * `latency` is milliseconds per task.
+ */
+export type ModelPriorEstimates = Readonly<Partial<Record<OutcomeDimension, number>>>;
+
+export type ModelPriorEntry = Readonly<{
+  provider: string;
+  model: string;
+  variant: string;
+  estimates: ModelPriorEstimates;
+}>;
+
+/**
+ * Evidence gates a recommendation must clear to count as evidence-backed.
+ * `minEvidenceSamples` bounds the real recorded signals behind the winner,
+ * `confidenceFloor` the share of its utility weight resting on real evidence
+ * rather than priors, and `utilityMargin` the utility lead required over the
+ * host-selected model.
+ */
+export type RoutingGatesConfig = Readonly<{
+  minEvidenceSamples: number;
+  confidenceFloor: number;
+  utilityMargin: number;
+}>;
+
 export type ConfigV1 = Readonly<{
   schemaVersion: typeof CONFIG_SCHEMA_VERSION;
   routing: Readonly<{
@@ -43,6 +88,8 @@ export type ConfigV1 = Readonly<{
       maxCostPerTaskUsd: number | null;
       maxLatencyMs: number | null;
     }>;
+    priors: ReadonlyArray<ModelPriorEntry>;
+    gates: RoutingGatesConfig;
   }>;
   retrieval: Readonly<{
     scope: ScopeConfig;

@@ -1,4 +1,4 @@
-import type { RoutingPreset } from "./config-types.js";
+import type { ModelPriorEntry, RoutingPreset } from "./config-types.js";
 import type { OutcomeDimension } from "./execution-profile-types.js";
 import type {
   DecayedEvidenceSummary,
@@ -27,10 +27,15 @@ export type RankEligibleModelsInput = Readonly<{
   maxAgeDays?: number;
   /**
    * Injectable evidence loader, applied to every candidate. Defaults to decayed
-   * aggregation over the live database; tests and prior-augmented callers
-   * (cold-start priors) substitute their own.
+   * aggregation over the live database; tests substitute their own.
    */
   loadEvidence?: (candidate: EligibleModelCandidate) => DecayedEvidenceSummary;
+  /**
+   * Cold-start priors from user configuration, matched by exact
+   * provider/model/variant. A prior only fills a dimension that recorded
+   * evidence left empty; it never overrides evidence.
+   */
+  priors?: ReadonlyArray<ModelPriorEntry>;
 }>;
 
 export type RankedDimensionContribution = Readonly<{
@@ -59,9 +64,11 @@ export type RankedModelCandidate = Readonly<{
   model: string;
   variant: string;
   /**
-   * Weighted average of the known dimension scores in [0, 1]. A candidate with
-   * no evidence on any dimension scores 0 and keeps its input order among
-   * equally evidence-free candidates; cold-start priors fill this gap later.
+   * Weighted average of the known dimension scores in [0, 1]. Evidence-free
+   * dimensions are dropped and the remaining weights renormalized; configured
+   * cold-start priors fill those gaps at the coarsest backoff weight (their
+   * contributions carry sampleCount 0). A candidate with neither evidence nor
+   * priors scores 0 and keeps its input order among such candidates.
    */
   utility: number;
   contributions: ReadonlyArray<RankedDimensionContribution>;

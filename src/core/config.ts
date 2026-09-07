@@ -7,24 +7,33 @@ import {
   DEFAULT_ALLOWLIST,
   DEFAULT_CURATED_PATHS,
   DEFAULT_EMBEDDING_MODEL,
+  DEFAULT_ROUTING_GATES,
+  DEFAULT_ROUTING_PRIORS,
 } from "../types/config-types.js";
 import type {
   ConfigV1,
   ModelAllowlistEntry,
+  ModelPriorEntry,
+  ModelPriorEstimates,
   PackageConfigPathInput,
   Reader,
+  RoutingGatesConfig,
   RoutingMode,
   RoutingPreset,
   ScopeConfig,
   ScopeToggle,
 } from "../types/config-types.js";
+import { MODEL_RANKING_CONSTANTS } from "./model-ranking-constants.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile, resolveManagedPaths } from "./paths.js";
 
 export { CONFIG_SCHEMA_VERSION } from "../types/config-types.js";
 export type {
   ConfigV1,
   ModelAllowlistEntry,
+  ModelPriorEntry,
+  ModelPriorEstimates,
   PackageConfigPathInput,
+  RoutingGatesConfig,
   RoutingMode,
   RoutingPreset,
   ScopeConfig,
@@ -71,6 +80,8 @@ export function createDefaultConfig(): ConfigV1 {
         maxCostPerTaskUsd: null,
         maxLatencyMs: null,
       },
+      priors: [...DEFAULT_ROUTING_PRIORS],
+      gates: { ...DEFAULT_ROUTING_GATES },
     },
     retrieval: {
       scope: {
@@ -247,6 +258,72 @@ function readAllowlist(value: unknown, label: string): ReadonlyArray<ModelAllowl
   return value.map((entry, index) => readAllowlistEntry(entry, `${label}[${index}]`));
 }
 
+function readPriorEstimate(dimension: string, value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number.`);
+  }
+  if (dimension === "quality" || dimension === "reliability") {
+    if (value < 0 || value > 1) {
+      throw new Error(`${label} must be between 0 and 1.`);
+    }
+  } else if (value < 0) {
+    throw new Error(`${label} must be non-negative.`);
+  }
+  return value;
+}
+
+function readPriorEstimates(value: unknown, label: string): ModelPriorEstimates {
+  const estimates = requirePlainObject(value, label);
+  const resolved: Record<string, number> = {};
+  for (const key of Object.keys(estimates)) {
+    if (!MODEL_RANKING_CONSTANTS.dimensionOrder.includes(key as never)) {
+      throw new Error(`${label} contains unknown dimension "${key}".`);
+    }
+    resolved[key] = readPriorEstimate(key, estimates[key], `${label}.${key}`);
+  }
+  return resolved;
+}
+
+function readPriorEntry(value: unknown, label: string): ModelPriorEntry {
+  const entry = requirePlainObject(value, label);
+  assertKnownKeys(entry, ["provider", "model", "variant", "estimates"], label);
+  return {
+    provider: readString(entry.provider, `${label}.provider`),
+    model: readString(entry.model, `${label}.model`),
+    variant: readString(entry.variant, `${label}.variant`),
+    estimates: readPriorEstimates(entry.estimates, `${label}.estimates`),
+  };
+}
+
+function readPriors(value: unknown, label: string): ReadonlyArray<ModelPriorEntry> {
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array.`);
+  }
+  return value.map((entry, index) => readPriorEntry(entry, `${label}[${index}]`));
+}
+
+function readNonNegativeInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new Error(`${label} must be a non-negative integer.`);
+  }
+  return value;
+}
+
+function readUnitInterval(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${label} must be a number between 0 and 1.`);
+  }
+  return value;
+}
+
+function readRoutingGates(value: unknown, label: string): RoutingGatesConfig {
+  return readSection(value, label, DEFAULT_ROUTING_GATES, {
+    minEvidenceSamples: readNonNegativeInteger,
+    confidenceFloor: readUnitInterval,
+    utilityMargin: readUnitInterval,
+  });
+}
+
 function resolvePackageConfigFilePath(input: PackageConfigPathInput): string {
   return readString(input.configFilePath ?? resolveManagedPaths().configFilePath, "configFilePath");
 }
@@ -381,6 +458,8 @@ export function resolveConfig(input: unknown): ConfigV1 {
         maxCostPerTaskUsd: readNullablePositiveNumber,
         maxLatencyMs: readNullablePositiveInteger,
       }),
+      priors: readPriors,
+      gates: readRoutingGates,
     }),
     retrieval: readSection(root.retrieval, "retrieval", defaults.retrieval, {
       scope: readScopeConfig,

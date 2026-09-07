@@ -49,6 +49,12 @@ test("createDefaultConfig returns conservative, isolated defaults", () => {
         maxCostPerTaskUsd: null,
         maxLatencyMs: null,
       },
+      priors: [],
+      gates: {
+        minEvidenceSamples: 5,
+        confidenceFloor: 0.5,
+        utilityMargin: 0.05,
+      },
     },
     retrieval: {
       scope: {
@@ -129,6 +135,19 @@ test("resolveConfig passes a fully specified config through unchanged", () => {
       hardLimits: {
         maxCostPerTaskUsd: 1.25,
         maxLatencyMs: 3000,
+      },
+      priors: [
+        {
+          provider: "openai",
+          model: "gpt-4.1",
+          variant: "default",
+          estimates: { quality: 0.8, cost: 0.02 },
+        },
+      ],
+      gates: {
+        minEvidenceSamples: 3,
+        confidenceFloor: 0.6,
+        utilityMargin: 0.02,
       },
     },
     retrieval: {
@@ -211,6 +230,59 @@ test("resolveConfig rejects malformed, unknown, and unsupported input", () => {
   expect(() => resolveConfig({ backups: { schedule: { intervalDays: 0 } } })).toThrow(/backups\.schedule\.intervalDays/);
   expect(() => resolveConfig({ maintenance: { staleLessonDays: -1 } })).toThrow(/maintenance\.staleLessonDays/);
   expect(() => resolveConfig({ routing: { allowlist: [{ provider: "x" }] } })).toThrow(/routing\.allowlist\[0\]\.capabilities/);
+});
+
+test("resolveConfig defaults and validates routing priors and gates", () => {
+  const defaults = createDefaultConfig();
+  expect(defaults.routing.priors).toEqual([]);
+  expect(defaults.routing.gates).toEqual({ minEvidenceSamples: 5, confidenceFloor: 0.5, utilityMargin: 0.05 });
+
+  const config = resolveConfig({
+    routing: {
+      priors: [
+        {
+          provider: "openai",
+          model: "gpt-4.1",
+          variant: "thinking",
+          estimates: { quality: 0.9, reliability: 0.7, cost: 0.03, latency: 2500 },
+        },
+      ],
+      gates: { minEvidenceSamples: 2, utilityMargin: 0.01 },
+    },
+  });
+  expect(config.routing.priors).toEqual([
+    {
+      provider: "openai",
+      model: "gpt-4.1",
+      variant: "thinking",
+      estimates: { quality: 0.9, reliability: 0.7, cost: 0.03, latency: 2500 },
+    },
+  ]);
+  expect(config.routing.gates).toEqual({ minEvidenceSamples: 2, confidenceFloor: 0.5, utilityMargin: 0.01 });
+});
+
+test("resolveConfig rejects malformed priors and gates", () => {
+  expect(() => resolveConfig({ routing: { priors: "yes" } })).toThrow(/routing\.priors must be an array/);
+  expect(() =>
+    resolveConfig({ routing: { priors: [{ provider: "x", model: "m", variant: "v", estimates: { charm: 1 } }] } }),
+  ).toThrow(/routing\.priors\[0\]\.estimates contains unknown dimension "charm"/);
+  expect(() =>
+    resolveConfig({ routing: { priors: [{ provider: "x", model: "m", variant: "v", estimates: { quality: 2 } }] } }),
+  ).toThrow(/routing\.priors\[0\]\.estimates\.quality must be between 0 and 1/);
+  expect(() =>
+    resolveConfig({ routing: { priors: [{ provider: "x", model: "m", variant: "v", estimates: { latency: -5 } }] } }),
+  ).toThrow(/routing\.priors\[0\]\.estimates\.latency must be non-negative/);
+  expect(() =>
+    resolveConfig({ routing: { priors: [{ provider: "x", model: "m", estimates: {} }] } }),
+  ).toThrow(/routing\.priors\[0\]\.variant/);
+  expect(() => resolveConfig({ routing: { gates: { minEvidenceSamples: 1.5 } } })).toThrow(
+    /routing\.gates\.minEvidenceSamples/,
+  );
+  expect(() => resolveConfig({ routing: { gates: { confidenceFloor: -0.1 } } })).toThrow(
+    /routing\.gates\.confidenceFloor/,
+  );
+  expect(() => resolveConfig({ routing: { gates: { utilityMargin: 2 } } })).toThrow(/routing\.gates\.utilityMargin/);
+  expect(() => resolveConfig({ routing: { gates: { surprise: 1 } } })).toThrow(/unknown key "surprise"/);
 });
 
 test("loadPackageConfig defaults missing files without creating them", () => {
