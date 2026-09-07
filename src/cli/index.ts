@@ -23,6 +23,7 @@ import {
   inspectLesson,
   listManagedBackups,
   listPendingLessonCandidates,
+  listTaskEvidenceSignals,
   loadPackageConfig,
   migrateSqliteSchema,
   openSqliteConnection,
@@ -75,6 +76,7 @@ Commands:
   task <id>                 Inspect a task's active profile
   task <id> --activity ...  Correct a task's active profile (new version)
   feedback <task-id>        Record explicit feedback for a task
+  evidence <task-id>        Inspect a task's recorded evidence signals
   relink <project-id>       Change a project's path or remote association
   export <path>             Export package-owned data as schema-versioned JSONL
   restore <path>            Replace the live database with a validated JSONL export
@@ -607,6 +609,51 @@ function runFeedbackCommand(parsed: ParsedArgs): void {
   }
 }
 
+function runEvidenceCommand(parsed: ParsedArgs): void {
+  const taskId = parsed.commandArg;
+  if (!taskId) {
+    throw new Error("Usage: evidence <task-id>");
+  }
+
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const signals = listTaskEvidenceSignals(connection, taskId);
+
+    console.log(`\nEvidence for task ${taskId}:`);
+    if (signals.length === 0) {
+      console.log("  No outcome signals recorded.");
+      return;
+    }
+    signals.forEach((signal, index) => {
+      console.log(`\n  [${index + 1}] ${signal.id}`);
+      console.log(`      Dimension:  ${signal.dimension}`);
+      console.log(`      Kind:       ${signal.kind}`);
+      console.log(`      Source:     ${signal.source}`);
+      console.log(`      Value:      ${signal.value}`);
+      console.log(`      Confidence: ${signal.confidence}`);
+      console.log(`      Execution:  ${signal.executionId ?? "(none)"}`);
+      if (signal.lessonId !== null) {
+        console.log(`      Lesson:     ${signal.lessonId}@v${signal.lessonVersion}`);
+      }
+      console.log(`      Observed:   ${signal.observedAt}`);
+      if (signal.supersedesSignalId !== null) {
+        console.log(`      Retracts:   ${signal.supersedesSignalId}`);
+      }
+      if (signal.supersededBy !== null) {
+        console.log(`      Retracted:  by ${signal.supersededBy}`);
+      }
+      const metadataEntries = Object.entries(signal.metadata);
+      if (metadataEntries.length > 0) {
+        const rendered = metadataEntries.map(([key, value]) => `${key}=${String(value)}`).join(", ");
+        console.log(`      Metadata:   ${rendered}`);
+      }
+    });
+  } finally {
+    connection.close();
+  }
+}
+
 function runRelinkCommand(parsed: ParsedArgs): void {
   const projectId = parsed.commandArg;
   if (!projectId) {
@@ -939,6 +986,8 @@ export async function main(
       runTaskCommand(parsed);
     } else if (parsed.command === "feedback") {
       runFeedbackCommand(parsed);
+    } else if (parsed.command === "evidence") {
+      runEvidenceCommand(parsed);
     } else if (parsed.command === "search") {
       runSearchCommand(parsed);
     } else if (parsed.command === "lesson") {
