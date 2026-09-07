@@ -1,4 +1,4 @@
-import type { LexicalLessonResult } from "../types/lesson-retrieval-types.js";
+import type { RetrievedLesson } from "../types/retrieved-lesson-types.js";
 import {
   DEFAULT_LESSON_TOKEN_BUDGET,
 } from "../types/lesson-context-types.js";
@@ -27,7 +27,7 @@ export function estimateTokenCount(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-function formatSingleLesson(lesson: LexicalLessonResult): string {
+function formatSingleLesson(lesson: RetrievedLesson): string {
   const scopeTag = lesson.scope === "project" ? "project" : "global";
   return `### ${lesson.title} [${scopeTag}]\n${lesson.body}\n`;
 }
@@ -82,6 +82,7 @@ export function packLessonContext(input: PackLessonContextInput): PackLessonCont
     excludedByBudgetCount: excluded.filter((e) => e.reason === "budget-exceeded").length,
     tokenBudget: budget,
     estimatedTokensUsed: packed.length > 0 ? usedTokens : 0,
+    semantic: { status: "unavailable", candidateCount: 0 },
   };
 
   return { block, packed, excluded, receipt };

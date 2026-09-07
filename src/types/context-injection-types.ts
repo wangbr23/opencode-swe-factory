@@ -1,5 +1,5 @@
 import type { RetrievalReceipt } from "./lesson-context-types.js";
-import type { LexicalLessonResult } from "./lesson-retrieval-types.js";
+import type { HybridLessonRetrievalResult } from "./lesson-hybrid-retrieval-types.js";
 
 export type PendingInjection = Readonly<{
   sessionId: string;
@@ -16,7 +16,7 @@ export type InjectionState = {
 export type RetrieveLessonsFn = (
   query: string,
   projectId: string,
-) => ReadonlyArray<LexicalLessonResult>;
+) => Promise<HybridLessonRetrievalResult>;
 
 export type PrepareInjectionInput = Readonly<{
   sessionId: string;

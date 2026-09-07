@@ -56,7 +56,9 @@ export function createChatMessageFixture(): Readonly<{
 }
 
 export function createSystemTransformOutputFixture(): SystemTransformHookOutput {
-  return { system: ["existing primary system block"] };
+  return {
+    system: ["existing primary system block"],
+  };
 }
 
 export function createAssistantCompletionEvent(
@@ -103,7 +105,10 @@ export function createAssistantCompletionEvent(
         }
       : {}),
   };
-  return { type: "message.updated", properties: { info } };
+  return {
+    type: "message.updated",
+    properties: { info },
+  };
 }
 
 export function createSystemTransformInputFixture(
@@ -115,13 +120,15 @@ export function createSystemTransformInputFixture(
   };
 }
 
-// The system-transform hook carries the full SDK Model shape, but the adapter
-// only reads the session ID. Build the minimal type-complete fixture once here.
 function createModelFixture(): SystemTransformHookInput["model"] {
   return {
     id: "gpt-4.1",
     providerID: "openai",
-    api: { id: "gpt-4.1", url: "https://api.openai.com/v1", npm: "@ai-sdk/openai" },
+    api: {
+      id: "gpt-4.1",
+      url: "https://api.openai.com/v1",
+      npm: "@ai-sdk/openai",
+    },
     name: "GPT-4.1",
     capabilities: {
       temperature: true,
@@ -158,6 +165,7 @@ export function withPlugin(
   overrides?: {
     compatibility?: OpenCodeCompatibility;
     config?: PluginDependencies["config"];
+    createLessonEmbedder?: PluginDependencies["createLessonEmbedder"];
   },
 ): Promise<void> {
   const directory = mkdtempSync(
@@ -179,6 +187,9 @@ export function withPlugin(
       version: "1.18.27",
     },
     diagnosticsPath: directory,
+    ...(overrides?.createLessonEmbedder !== undefined
+      ? { createLessonEmbedder: overrides.createLessonEmbedder }
+      : {}),
   };
 
   const hooks = composePluginHooks(deps);

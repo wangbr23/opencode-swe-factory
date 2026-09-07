@@ -9,7 +9,9 @@ import {
   openSqliteConnection,
   releaseSchemaMigrations,
 } from "../core/index.js";
-import { retrieveConfirmedLessonsLexically } from "../core/lesson-retrieval.js";
+import { retrieveConfirmedLessonsHybrid } from "../core/lesson-hybrid-retrieval.js";
+import { createLocalLessonEmbedder } from "../core/lesson-embedder.js";
+import { resolveEmbeddingArtifactDirectory } from "../core/embedding-artifacts.js";
 import { recordLessonRetrievalHits } from "../core/lesson-usage-tracking.js";
 import { resolveManagedPaths } from "../core/paths.js";
 import { resolveProjectIdentity } from "../core/project-identity.js";
@@ -21,6 +23,7 @@ import type { OpenCodeCompatibility } from "../types/compatibility-types.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 import type { OpenCodeSessionToggles } from "../types/opencode-tool-types.js";
 import type { PluginDependencies } from "../types/plugin-types.js";
+import type { EmbedLessonTextFn } from "../types/lesson-embedding-index-types.js";
 import { checkOpenCodeCompatibility } from "./compatibility.js";
 import {
   applyInjection,
@@ -124,6 +127,8 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
   const toolOutcomeCaptureState = createToolOutcomeCaptureState();
   const routingReceiptState = createRoutingReceiptState();
   const sessionTogglesMap = new Map<string, OpenCodeSessionToggles>();
+  let embedder: EmbedLessonTextFn | undefined;
+  let embedderStartup: Promise<void> | undefined;
 
   const hooks: Hooks = {
     async dispose() {
@@ -154,19 +159,38 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
         );
 
         if (injectionEnabled) {
-          prepareInjection(
+          await prepareInjection(
             injectionState,
             toggles,
             buildInjectionInput(sessionId, input.messageID, messageText, projectId),
-            (query, pid) => {
-              const results = retrieveConfirmedLessonsLexically(connection, {
+            async (query, retrievalProjectId) => {
+              if (deps.createLessonEmbedder !== undefined && embedderStartup === undefined) {
+                embedderStartup = Promise.resolve()
+                  .then(deps.createLessonEmbedder)
+                  .then((created) => { embedder = created; })
+                  .catch(() => {
+                    // Keep lexical retrieval available when local setup is absent or broken.
+                  });
+              }
+              const hybrid = await retrieveConfirmedLessonsHybrid(connection, {
                 query,
-                projectId: pid,
+                projectId: retrievalProjectId,
+                ...(embedder !== undefined ? { embed: embedder } : {}),
+                ...(boundaryResult.status === "started"
+                  ? {
+                      taskProfile: {
+                        activity: boundaryResult.profile.activity,
+                        domain: boundaryResult.profile.domain,
+                        complexity: boundaryResult.profile.complexity,
+                        stack: boundaryResult.profile.stack,
+                      },
+                    }
+                  : {}),
               });
               // Usage tracking feeds the maintenance digest and must never break injection.
               try {
                 recordLessonRetrievalHits(connection, {
-                  hits: results.map((lesson) => ({
+                  hits: hybrid.lessons.map((lesson) => ({
                     lessonId: lesson.lessonId,
                     version: lesson.version,
                   })),
@@ -174,7 +198,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
               } catch {
                 // fail-open: digests degrade without usage data
               }
-              return results;
+              return hybrid;
             },
           );
         }
@@ -536,6 +560,12 @@ export const server: Plugin = async (input, options) => {
       projectId: projectResult.project.id,
       compatibility,
       diagnosticsPath: paths.dataDirectory,
+      createLessonEmbedder: () => createLocalLessonEmbedder({
+        artifactDirectory: resolveEmbeddingArtifactDirectory({
+          cacheDirectory: paths.cacheDirectory,
+          configArtifactDirectory: config.embeddings.artifactDirectory,
+        }),
+      }),
     });
   } catch (error) {
     try {

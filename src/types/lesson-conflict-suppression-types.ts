@@ -1,12 +1,12 @@
-import type { LexicalLessonResult } from "./lesson-retrieval-types.js";
+import type { RetrievedLesson } from "./retrieved-lesson-types.js";
 
 export type SuppressConflictsInput = Readonly<{
-  results: ReadonlyArray<LexicalLessonResult>;
+  results: ReadonlyArray<RetrievedLesson>;
   bodyConflictThreshold?: number;
 }>;
 
 export type SuppressConflictsResult = Readonly<{
-  kept: ReadonlyArray<LexicalLessonResult>;
+  kept: ReadonlyArray<RetrievedLesson>;
   suppressed: ReadonlyArray<SuppressedLesson>;
 }>;
 

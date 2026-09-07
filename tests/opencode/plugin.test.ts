@@ -3,8 +3,10 @@ import { expect, test } from "bun:test";
 import {
   proposeLessonCandidate,
   reviewLessonCandidate,
+  indexConfirmedLessonEmbeddings,
   type SecretScanResult,
 } from "../../src/core/index.js";
+import { EMBEDDING_VECTOR_DIMENSIONS } from "../../src/types/embedding-types.js";
 import {
   chatInput,
   createToolContext,
@@ -116,10 +118,128 @@ test("system.transform injects lesson context when supported", () =>
     const systemTransform = hooks[
       "experimental.chat.system.transform"
     ] as SystemTransformHook;
-    await systemTransform({ sessionID: "s1", model: {} as any }, systemOutput);
+    await systemTransform(
+      { sessionID: "s1", model: {} as any },
+      systemOutput,
+    );
 
     expect(systemOutput.system[0]).toContain("parameterized queries");
   }));
+
+test("semantic setup failure leaves lexical context injection available", () =>
+  withPlugin(
+    async ({ hooks, connection, projectId }) => {
+      const candidate = proposeLessonCandidate(connection, {
+        projectId,
+        scope: "project",
+        draft: {
+          title: "Use transactions",
+          body: "Use transactions for related writes",
+          rationale: "atomicity",
+          applicability: {},
+          provenance: {},
+        },
+        secretScan: { disposition: "clear", findings: [], redactedText: "" },
+      });
+      reviewLessonCandidate(connection, { candidateId: candidate.id, decision: "approve" });
+      const message = chatInput("s1", "Use transactions for writes");
+      await (hooks["chat.message"] as ChatMessageHook)(message.input, message.output);
+      const output = { system: ["original"] };
+      await (hooks["experimental.chat.system.transform"] as SystemTransformHook)(
+        {
+          sessionID: "s1",
+          model: {} as any,
+        },
+        output,
+      );
+      expect(output.system[0]).toContain("Use transactions");
+    },
+    {
+      createLessonEmbedder: async () => {
+        throw new Error("artifacts missing");
+      },
+    },
+  ));
+
+test("semantic-only paraphrase reaches injection after lazy embedder startup", () =>
+  withPlugin(
+    async ({ hooks, connection, projectId }) => {
+      const embed = async (): Promise<Float32Array> => {
+        const vector = new Float32Array(EMBEDDING_VECTOR_DIMENSIONS);
+        vector[0] = 1;
+        return vector;
+      };
+      const candidate = proposeLessonCandidate(connection, {
+        projectId,
+        scope: "project",
+        draft: {
+          title: "Parameterized SQL",
+          body: "Bind SQL values through parameters",
+          rationale: "security",
+          applicability: {},
+          provenance: {},
+        },
+        secretScan: { disposition: "clear", findings: [], redactedText: "" },
+      });
+      reviewLessonCandidate(connection, { candidateId: candidate.id, decision: "approve" });
+      await indexConfirmedLessonEmbeddings(connection, { embed });
+
+      const chatMessage = hooks["chat.message"] as ChatMessageHook;
+      const coldMessage = chatInput("s1", "Avoid interpolating database values");
+      await chatMessage(coldMessage.input, coldMessage.output);
+      await Promise.resolve();
+      const semanticMessage = chatInput("s2", "Avoid interpolating database values", "m2");
+      await chatMessage(semanticMessage.input, semanticMessage.output);
+      const output = { system: ["original"] };
+      await (hooks["experimental.chat.system.transform"] as SystemTransformHook)(
+        {
+          sessionID: "s2",
+          model: {} as any,
+        },
+        output,
+      );
+      expect(output.system[0]).toContain("Bind SQL values through parameters");
+    },
+    {
+      createLessonEmbedder: async () => async () => {
+        const vector = new Float32Array(EMBEDDING_VECTOR_DIMENSIONS);
+        vector[0] = 1;
+        return vector;
+      },
+    },
+  ));
+
+test("injection guards do not start the embedder", () => {
+  let factoryCalls = 0;
+  return withPlugin(
+    async ({ hooks, getTool }) => {
+      const chatMessage = hooks["chat.message"] as ChatMessageHook;
+      await getTool("swe_factory_set_private_mode").execute(
+        { enabled: true },
+        createToolContext("private"),
+      );
+      await chatMessage(
+        chatInput("private", "private request").input,
+        chatInput("private", "private request").output,
+      );
+      await getTool("swe_factory_set_toggle").execute(
+        { feature: "retrieval", enabled: false },
+        createToolContext("disabled"),
+      );
+      await chatMessage(
+        chatInput("disabled", "disabled request").input,
+        chatInput("disabled", "disabled request").output,
+      );
+      expect(factoryCalls).toBe(0);
+    },
+    {
+      createLessonEmbedder: () => {
+        factoryCalls += 1;
+        throw new Error("must not start");
+      },
+    },
+  );
+});
 
 test("system.transform is no-op when version unsupported", () =>
   withPlugin(
@@ -129,7 +249,10 @@ test("system.transform is no-op when version unsupported", () =>
         "experimental.chat.system.transform"
       ] as SystemTransformHook;
       await systemTransform(
-        { sessionID: "s1", model: {} as any },
+        {
+          sessionID: "s1",
+          model: {} as any,
+        },
         systemOutput,
       );
       expect(systemOutput.system[0]).toBe("original prompt");
@@ -327,7 +450,10 @@ test("propose → approve → inject in later session", () =>
     const systemTransform = hooks[
       "experimental.chat.system.transform"
     ] as SystemTransformHook;
-    await systemTransform({ sessionID: "s2", model: {} as any }, systemOutput);
+    await systemTransform(
+      { sessionID: "s2", model: {} as any },
+      systemOutput,
+    );
 
     expect(systemOutput.system[0]).toContain("Validate all inputs");
   }));

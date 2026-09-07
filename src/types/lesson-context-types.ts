@@ -1,11 +1,11 @@
 import type { LessonScope } from "./lessons-types.js";
-import type { LexicalLessonResult } from "./lesson-retrieval-types.js";
+import type { RetrievedLesson } from "./retrieved-lesson-types.js";
 import type { SuppressedLesson } from "./lesson-conflict-suppression-types.js";
 
 export const DEFAULT_LESSON_TOKEN_BUDGET = 2000;
 
 export type PackLessonContextInput = Readonly<{
-  kept: ReadonlyArray<LexicalLessonResult>;
+  kept: ReadonlyArray<RetrievedLesson>;
   suppressed: ReadonlyArray<SuppressedLesson>;
   query: string;
   tokenBudget?: number;
@@ -33,6 +33,10 @@ export type RetrievalReceipt = Readonly<{
   excludedByBudgetCount: number;
   tokenBudget: number;
   estimatedTokensUsed: number;
+  semantic: Readonly<{
+    status: "available" | "unavailable";
+    candidateCount: number;
+  }>;
 }>;
 
 export type PackLessonContextResult = Readonly<{

@@ -1,4 +1,5 @@
 import type { LessonScope } from "./lessons-types.js";
+import type { RetrievedLesson } from "./retrieved-lesson-types.js";
 
 export type RetrieveConfirmedLessonsLexicallyInput = Readonly<{
   projectId: string;
@@ -6,17 +7,7 @@ export type RetrieveConfirmedLessonsLexicallyInput = Readonly<{
   limit?: number;
 }>;
 
-export type LexicalLessonResult = Readonly<{
-  lessonId: string;
-  version: number;
-  projectId: string | null;
-  scope: LessonScope;
-  title: string;
-  body: string;
-  rationale: string;
-  applicability: Readonly<Record<string, unknown>>;
-  provenance: Readonly<Record<string, unknown>>;
-  createdAt: string;
+export type LexicalLessonResult = RetrievedLesson & Readonly<{
   lexicalRank: number;
 }>;
 

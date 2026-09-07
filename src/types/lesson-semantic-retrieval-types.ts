@@ -1,5 +1,6 @@
 import type { EmbedLessonTextFn } from "./lesson-embedding-index-types.js";
 import type { LessonScope } from "./lessons-types.js";
+import type { RetrievedLesson } from "./retrieved-lesson-types.js";
 
 export type RetrieveConfirmedLessonsSemanticallyInput = Readonly<{
   projectId: string;
@@ -13,17 +14,7 @@ export type RetrieveConfirmedLessonsSemanticallyInput = Readonly<{
   limit?: number;
 }>;
 
-export type SemanticLessonResult = Readonly<{
-  lessonId: string;
-  version: number;
-  projectId: string | null;
-  scope: LessonScope;
-  title: string;
-  body: string;
-  rationale: string;
-  applicability: Readonly<Record<string, unknown>>;
-  provenance: Readonly<Record<string, unknown>>;
-  createdAt: string;
+export type SemanticLessonResult = RetrievedLesson & Readonly<{
   similarity: number;
   semanticRank: number;
 }>;

@@ -3,7 +3,7 @@ import type {
   SuppressConflictsResult,
   SuppressedLesson,
 } from "../types/lesson-conflict-suppression-types.js";
-import type { LexicalLessonResult } from "../types/lesson-retrieval-types.js";
+import type { RetrievedLesson } from "../types/retrieved-lesson-types.js";
 import { MINIMUM_OVERLAP_THRESHOLD } from "./lesson-duplicate-detection-constants.js";
 import { extractTerms, jaccardSimilarity } from "./lexical-overlap.js";
 
@@ -24,7 +24,7 @@ export type {
  */
 export function suppressConflictingLessons(input: SuppressConflictsInput): SuppressConflictsResult {
   const threshold = input.bodyConflictThreshold ?? MINIMUM_OVERLAP_THRESHOLD;
-  const kept: LexicalLessonResult[] = [];
+  const kept: RetrievedLesson[] = [];
   const suppressed: SuppressedLesson[] = [];
   const keptTerms: Array<{ lessonId: string; terms: ReadonlySet<string> }> = [];
 

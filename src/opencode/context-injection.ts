@@ -23,12 +23,12 @@ export function createInjectionState(): InjectionState {
   return { pending: new Map() };
 }
 
-export function prepareInjection(
+export async function prepareInjection(
   state: InjectionState,
   toggles: ResolvedFeatureToggles,
   input: PrepareInjectionInput,
   retrieve: RetrieveLessonsFn,
-): PrepareInjectionResult {
+): Promise<PrepareInjectionResult> {
   if (toggles.privateMode) {
     return { status: "skipped", reason: "private-mode" };
   }
@@ -49,7 +49,7 @@ export function prepareInjection(
 
   let retrieved;
   try {
-    retrieved = retrieve(trimmedQuery, input.projectId);
+    retrieved = await retrieve(trimmedQuery, input.projectId);
   } catch (error) {
     return {
       status: "failed",
@@ -57,21 +57,28 @@ export function prepareInjection(
     };
   }
 
-  const { kept, suppressed } = suppressConflictingLessons({ results: retrieved });
+  const { kept, suppressed } = suppressConflictingLessons({ results: retrieved.lessons });
   const packInput = input.tokenBudget !== undefined
     ? { kept, suppressed, query: trimmedQuery, tokenBudget: input.tokenBudget }
     : { kept, suppressed, query: trimmedQuery };
   const packed = packLessonContext(packInput);
+  const receipt = {
+    ...packed.receipt,
+    semantic: {
+      status: retrieved.semantic.status,
+      candidateCount: retrieved.semantic.candidateCount,
+    },
+  };
 
   if (packed.packed.length === 0) {
-    return { status: "empty", receipt: packed.receipt };
+    return { status: "empty", receipt };
   }
 
   const pending: PendingInjection = {
     sessionId: input.sessionId,
     messageId: input.messageId,
     block: packed.block,
-    receipt: packed.receipt,
+    receipt,
     preparedAt: input.now ?? new Date().toISOString(),
   };
 
