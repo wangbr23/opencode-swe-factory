@@ -55,7 +55,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T47` Add the OpenCode context-injection contract suite — agent, complexity: complex, depends-on: T15, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T48` Build the post-V1 phase-transition retrieval prototype and fixture metrics — agent, complexity: complex, depends-on: T47, T93, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T49` Implement asynchronous confirmed-lesson embedding indexing and versioned re-embedding — agent, complexity: complex, depends-on: T16, T31, T34, design: docs/designs/2026-09-05-governed-memory-router-v1.md
-- [ ] `T50` Build the versioned confirmed-lesson retrieval benchmark corpus and metrics harness — agent, complexity: complex, depends-on: T46, T85, design: docs/designs/2026-09-05-governed-memory-router-v1.md
+- [x] `T50` Build the versioned confirmed-lesson retrieval benchmark corpus and metrics harness — agent, complexity: complex, depends-on: T46, T85, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T51` Persist redacted task profiles and classification corrections — agent, complexity: complex, depends-on: T7, T18, T32, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T52` Add the CLI task-profile inspection and correction command — agent, complexity: simple, depends-on: T27, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T53` Map OpenCode top-level requests and delegated subtasks into task boundaries — agent, complexity: complex, depends-on: T4, T5, T51, design: docs/designs/2026-09-03-coding-memory-model-router.md

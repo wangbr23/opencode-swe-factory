@@ -20,6 +20,7 @@ export * from "./lesson-conflict-suppression.js";
 export * from "./lesson-context.js";
 export * from "./lesson-embedder.js";
 export * from "./lesson-hybrid-retrieval.js";
+export * from "./retrieval-benchmark.js";
 export * from "./lesson-semantic-retrieval.js";
 export * from "./markdown-chunking.js";
 export * from "./model-eligibility.js";
