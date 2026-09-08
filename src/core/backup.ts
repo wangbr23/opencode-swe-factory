@@ -43,7 +43,7 @@ function backupFileTimestamp(createdAt: Date): string {
   return createdAt.toISOString().replaceAll(/[-:.]/g, "");
 }
 
-function verifyBackupIntegrity(backupPath: string): void {
+export function verifyBackupIntegrity(backupPath: string): void {
   const database = new Database(backupPath, { readonly: true });
   try {
     const rows = database.query<IntegrityCheckRow, []>("PRAGMA integrity_check").all();

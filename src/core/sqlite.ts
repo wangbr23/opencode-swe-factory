@@ -58,32 +58,52 @@ function closeAfterInitializationFailure(database: Database | undefined): unknow
   return undefined;
 }
 
+function isLockError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /database is locked|database is busy/i.test(message);
+}
+
+const OPEN_RETRY_LIMIT = 20;
+const OPEN_RETRY_DELAY_MS = 50;
+
 export function openSqliteConnection(databasePath: string): SqliteConnection {
   let database: Database | undefined;
 
-  try {
-    if (!isAbsolute(databasePath)) {
-      throw new Error("SQLite database path must be absolute.");
-    }
-    ensureOwnerOnlyFile(databasePath);
-    database = new Database(databasePath, { create: true, readwrite: true });
-    database.run("PRAGMA journal_mode = WAL");
-    database.run("PRAGMA foreign_keys = ON");
-    database.run("PRAGMA secure_delete = ON");
-    database.run(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
+  // PRAGMA journal_mode = WAL does not reliably invoke the busy handler, so a
+  // concurrent first open can fail with an immediate "database is locked"
+  // regardless of busy_timeout. Retry the whole initialization instead.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      if (!isAbsolute(databasePath)) {
+        throw new Error("SQLite database path must be absolute.");
+      }
+      ensureOwnerOnlyFile(databasePath);
+      database = new Database(databasePath, { create: true, readwrite: true });
+      // busy_timeout must precede journal_mode: switching to WAL takes a lock,
+      // and with the default 0 timeout a concurrent open fails immediately.
+      database.run(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
+      database.run("PRAGMA journal_mode = WAL");
+      database.run("PRAGMA foreign_keys = ON");
+      database.run("PRAGMA secure_delete = ON");
 
-    verifyPragma(database, "journal_mode", "wal");
-    verifyPragma(database, "foreign_keys", 1);
-    verifyPragma(database, "secure_delete", 1);
-    verifyPragma(database, "busy_timeout", SQLITE_BUSY_TIMEOUT_MS, "timeout");
-    verifyFts5(database, databasePath);
-    ensureOwnerOnlyFile(databasePath);
-  } catch (error) {
-    const cleanupError = closeAfterInitializationFailure(database);
-    if (error instanceof SqlitePrerequisiteError) {
-      throw new SqlitePrerequisiteError(databasePath, error.cause, cleanupError);
+      verifyPragma(database, "journal_mode", "wal");
+      verifyPragma(database, "foreign_keys", 1);
+      verifyPragma(database, "secure_delete", 1);
+      verifyPragma(database, "busy_timeout", SQLITE_BUSY_TIMEOUT_MS, "timeout");
+      verifyFts5(database, databasePath);
+      ensureOwnerOnlyFile(databasePath);
+      break;
+    } catch (error) {
+      const cleanupError = closeAfterInitializationFailure(database);
+      database = undefined;
+      if (error instanceof SqlitePrerequisiteError || !isLockError(error) || attempt >= OPEN_RETRY_LIMIT) {
+        if (error instanceof SqlitePrerequisiteError) {
+          throw new SqlitePrerequisiteError(databasePath, error.cause, cleanupError);
+        }
+        throw new SqliteConnectionInitializationError(databasePath, error, cleanupError);
+      }
+      Bun.sleepSync(OPEN_RETRY_DELAY_MS);
     }
-    throw new SqliteConnectionInitializationError(databasePath, error, cleanupError);
   }
 
   let isClosed = false;
