@@ -4,6 +4,9 @@ import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import {
+  PINNED_EMBEDDING_DTYPE,
+  PINNED_EMBEDDING_MODEL_ID,
+  PINNED_EMBEDDING_MODEL_REVISION,
   TASK_ACTIVITY_VALUES,
   TASK_COMPLEXITY_VALUES,
   TASK_DOMAIN_VALUES,
@@ -21,6 +24,7 @@ import {
   HARD_DELETE_CONFIRMATION_PHRASE,
   hardDeleteAllStoredData,
   inspectLesson,
+  installEmbeddingArtifacts,
   listManagedBackups,
   listPendingLessonCandidates,
   listTaskEvidenceSignals,
@@ -30,6 +34,7 @@ import {
   readLocalDiagnostics,
   recordExplicitFeedback,
   releaseSchemaMigrations,
+  resolveEmbeddingArtifactDirectory,
   resolveManagedPaths,
   retrieveConfirmedLessonsLexically,
   reviewLessonCandidate,
@@ -37,6 +42,8 @@ import {
   relinkProject,
   restoreDatabaseFromJsonl,
   supersedeLesson,
+  verifyEmbeddingArtifacts,
+  type EmbeddingArtifactState,
   type ExplicitFeedbackKind,
   type HealthCheck,
   type LocalDiagnostic,
@@ -82,6 +89,8 @@ Commands:
   restore <path>            Replace the live database with a validated JSONL export
   hard-delete               Permanently delete all stored data and managed backups
   status                    Show diagnostics, paths, and compatibility status
+  embeddings-install        Download and verify the pinned embedding artifacts
+  embeddings-status         Show embedding artifact state and offline readiness
 
 Options:
   --database <path>          Path to the SQLite database file
@@ -863,6 +872,85 @@ function runTogglesCommand(parsed: ParsedArgs): void {
   }
 }
 
+const EMBEDDING_RUNTIME_SPECIFIER = "@huggingface/transformers";
+
+function isEmbeddingRuntimeInstalled(): boolean {
+  try {
+    Bun.resolveSync(EMBEDDING_RUNTIME_SPECIFIER, import.meta.dir);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveEmbeddingsCommandContext(parsed: ParsedArgs) {
+  const config = loadPackageConfig(resolveConfigPathInput(parsed));
+  const artifactDirectory = resolveEmbeddingArtifactDirectory({
+    cacheDirectory: resolveManagedPaths().cacheDirectory,
+    configArtifactDirectory: config.embeddings.artifactDirectory,
+  });
+  return { config, artifactDirectory };
+}
+
+function printEmbeddingsPinnedModel(): void {
+  console.log(`Pinned model: ${PINNED_EMBEDDING_MODEL_ID} (revision ${PINNED_EMBEDDING_MODEL_REVISION}, dtype ${PINNED_EMBEDDING_DTYPE})`);
+}
+
+function printEmbeddingsOfflineReadiness(
+  artifactState: EmbeddingArtifactState,
+  runtimeInstalled: boolean,
+): void {
+  if (artifactState === "verified" && runtimeInstalled) {
+    console.log("Offline semantic retrieval: ready");
+    return;
+  }
+
+  const reasons: string[] = [];
+  if (artifactState !== "verified") {
+    reasons.push(`run "embeddings-install" to install the pinned artifacts (state: ${artifactState})`);
+  }
+  if (!runtimeInstalled) {
+    reasons.push(`install the optional ${EMBEDDING_RUNTIME_SPECIFIER} peer dependency`);
+  }
+  console.log(`Offline semantic retrieval: not ready (${reasons.join("; ")})`);
+}
+
+async function runEmbeddingsInstallCommand(parsed: ParsedArgs): Promise<void> {
+  const { config, artifactDirectory } = resolveEmbeddingsCommandContext(parsed);
+
+  const result = await installEmbeddingArtifacts({
+    artifactDirectory,
+    allowRemoteDownloads: config.embeddings.allowRemoteDownloads,
+    privateModeEnabled: config.privateMode.enabled,
+  });
+
+  printEmbeddingsPinnedModel();
+  console.log(`Artifact directory: ${result.artifactDirectory}`);
+  console.log(`Downloaded ${result.downloadedFiles.length} file(s); skipped ${result.skippedFiles.length} already-verified file(s).`);
+  console.log(`Artifacts: ${result.verification.state}`);
+  for (const file of result.verification.files) {
+    console.log(`  ${file.path}: ${file.state}`);
+  }
+  printEmbeddingsOfflineReadiness(result.verification.state, isEmbeddingRuntimeInstalled());
+}
+
+function runEmbeddingsStatusCommand(parsed: ParsedArgs): void {
+  const { config, artifactDirectory } = resolveEmbeddingsCommandContext(parsed);
+  const verification = verifyEmbeddingArtifacts({ artifactDirectory });
+  const runtimeInstalled = isEmbeddingRuntimeInstalled();
+
+  printEmbeddingsPinnedModel();
+  console.log(`Artifact directory: ${artifactDirectory}`);
+  console.log(`Artifacts: ${verification.state}`);
+  for (const file of verification.files) {
+    console.log(`  ${file.path}: ${file.state}`);
+  }
+  console.log(`Runtime: ${runtimeInstalled ? "installed" : "not installed"}`);
+  printEmbeddingsOfflineReadiness(verification.state, runtimeInstalled);
+  console.log(`Remote downloads: ${config.embeddings.allowRemoteDownloads ? "allowed" : "blocked by embeddings.allowRemoteDownloads"}`);
+  console.log(`Private mode: ${config.privateMode.enabled ? "on (blocks artifact installs)" : "off"}`);
+}
+
 async function runExportCommand(parsed: ParsedArgs): Promise<void> {
   const outputArg = parsed.commandArg;
   if (!outputArg) {
@@ -1002,6 +1090,10 @@ export async function main(
       runHardDeleteCommand(parsed, options?.readLine ?? prompt);
     } else if (parsed.command === "status") {
       runStatusCommand(parsed);
+    } else if (parsed.command === "embeddings-install") {
+      await runEmbeddingsInstallCommand(parsed);
+    } else if (parsed.command === "embeddings-status") {
+      runEmbeddingsStatusCommand(parsed);
     } else {
       console.error(`Unknown command: ${parsed.command ?? "(none)"}.`);
       return 1;
