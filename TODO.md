@@ -81,14 +81,14 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T73` Add project/global isolation, supersession, and conflict acceptance scenarios — agent, complexity: complex, depends-on: T25, T45, T88, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T74` Add private-mode and secret-handling persistence acceptance scenarios — agent, complexity: complex, depends-on: T16, T54, T57, T70, T71, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T75` Add hard-deletion and managed-backup purge acceptance scenarios — agent, complexity: complex, depends-on: T12, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T76` Add migration, corruption, backup, and restore recovery scenarios — agent, complexity: complex, depends-on: T41, T42, T68, T83, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T76` Add migration, corruption, backup, and restore recovery scenarios — agent, complexity: complex, depends-on: T41, T42, T68, T83, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T77` Add unsupported-version, queue, provider-rejection, and fail-open OpenCode scenarios — agent, complexity: complex, depends-on: T47, T65, T71, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T78` Add recommendation, override, automatic-routing, and exploration acceptance scenarios — agent, complexity: complex, depends-on: T66, T67, T71, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T79` Document installation, controls, network behavior, privacy boundaries, and recovery — agent, complexity: simple, depends-on: T69, T72, T74, T76, T77, T78, T81, T82, T86, T90, T91, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T80` Validate the packaged entry points in a clean OpenCode home — agent, complexity: complex, depends-on: T73, T74, T75, T76, T77, T78, T79, T84, T89, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T81` Add CLI backup and backup-status commands — agent, complexity: simple, depends-on: T11, T42, T68, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T82` Add the explicit embedding-install and offline-status command — agent, complexity: simple, depends-on: T16, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T83` Add SQLite migration, contention, and failure-injection tests — agent, complexity: complex, depends-on: T32, T41, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T83` Add SQLite migration, contention, and failure-injection tests — agent, complexity: complex, depends-on: T32, T41, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T84` Review approval-card and receipt usability in live sessions — manual, depends-on: T21, T39, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T85` Implement reciprocal-rank fusion and deterministic confirmed-lesson boosts — agent, complexity: complex, depends-on: T17, T45, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [ ] `T86` Add the CLI project-identity merge command — agent, complexity: complex, depends-on: T33, design: docs/designs/2026-09-03-coding-memory-model-router.md
