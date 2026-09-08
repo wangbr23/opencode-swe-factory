@@ -150,38 +150,48 @@ test("injection preserves the original primary content and leaves other system e
     expect(system[2]).toBe("tertiary block");
   }));
 
-// --- Contract: exactly-once consumption ---
+// --- Contract: per-turn sticky injection ---
 
-test("pending injection is consumed exactly once across repeated transforms", () =>
+test("each LLM request of a turn gets the block exactly once", () =>
   withPlugin(async ({ hooks, connection, projectId }) => {
     await confirmLesson(connection, projectId, SQL_LESSON);
 
     await sendMessage(hooks, "s1", SQL_QUERY);
 
-    const system = ["existing system prompt"];
-    await runSystemTransform(hooks, "s1", system);
-    await runSystemTransform(hooks, "s1", system);
+    // OpenCode fires the system transform for every LLM request of the turn
+    // (forked title/summary requests, each tool-loop step), each with a fresh
+    // system array. Every one of them must carry the block exactly once.
+    const titleRequest = ["title system prompt"];
+    await runSystemTransform(hooks, "s1", titleRequest);
+    const mainRequest = ["existing system prompt"];
+    await runSystemTransform(hooks, "s1", mainRequest);
+    const toolLoopStep = ["existing system prompt"];
+    await runSystemTransform(hooks, "s1", toolLoopStep);
 
-    expect(countOccurrences(primaryOf(system), "Use parameterized queries")).toBe(1);
+    for (const request of [titleRequest, mainRequest, toolLoopStep]) {
+      expect(countOccurrences(primaryOf(request), "Use parameterized queries")).toBe(1);
+    }
   }));
 
 // --- Contract: queued same-session correlation ---
 
-test("second queued message in the same session suppresses both injections, and the next message recovers", () =>
+test("a queued newer message replaces pending, and its retrieval wins exactly once", () =>
   withPlugin(async ({ hooks, connection, projectId }) => {
     await confirmLesson(connection, projectId, SQL_LESSON);
+    await confirmLesson(connection, projectId, {
+      title: "Run the test suite",
+      body: "Run the full test suite before every commit to catch regressions",
+    });
 
     await sendMessage(hooks, "s1", SQL_QUERY, "msg-1");
-    await sendMessage(hooks, "s1", SQL_QUERY, "msg-2");
+    await sendMessage(hooks, "s1", "Run the full test suite before every commit", "msg-2");
 
     const system = ["existing system prompt"];
     await runSystemTransform(hooks, "s1", system);
-    expect(system).toEqual(["existing system prompt"]);
 
-    await sendMessage(hooks, "s1", SQL_QUERY, "msg-3");
-    const recovered = ["existing system prompt"];
-    await runSystemTransform(hooks, "s1", recovered);
-    expect(recovered[0]).toContain("Use parameterized queries");
+    expect(system).toHaveLength(1);
+    expect(countOccurrences(primaryOf(system), "Run the test suite")).toBe(1);
+    expect(primaryOf(system)).not.toContain("Use parameterized queries");
   }));
 
 // --- Contract: concurrent-session isolation ---
@@ -216,6 +226,19 @@ test("pending injection for one session never reaches or is consumed by another 
 
 // --- Contract: human-approval and privacy boundaries ---
 
+test("the proposal protocol is injected even when no confirmed lessons exist", () =>
+  withPlugin(async ({ hooks }) => {
+    await sendMessage(hooks, "s1", "can you explain in simpler terms");
+
+    const system = ["existing system prompt"];
+    await runSystemTransform(hooks, "s1", system);
+
+    expect(system).toHaveLength(1);
+    expect(primaryOf(system)).toContain("swe_factory_propose_lesson");
+    expect(primaryOf(system)).not.toContain("Confirmed Lessons");
+    expect(primaryOf(system)).not.toContain("explain in simpler terms");
+  }));
+
 test("unapproved lesson candidates are never injected", () =>
   withPlugin(async ({ hooks, getTool }) => {
     const proposeResult = await getTool("swe_factory_propose_lesson").execute(
@@ -237,7 +260,9 @@ test("unapproved lesson candidates are never injected", () =>
 
     const system = ["existing system prompt"];
     await runSystemTransform(hooks, "s1", system);
-    expect(system).toEqual(["existing system prompt"]);
+    expect(system).toHaveLength(1);
+    expect(primaryOf(system)).toContain("swe_factory_propose_lesson");
+    expect(primaryOf(system)).not.toContain("zebra wetland");
   }));
 
 test("session private mode suppresses injection of matching confirmed lessons", () =>

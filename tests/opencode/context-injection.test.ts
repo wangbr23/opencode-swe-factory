@@ -4,6 +4,7 @@ import {
   applyInjection,
   clearPendingInjection,
   createInjectionState,
+  LESSON_PROPOSAL_PROTOCOL,
   prepareInjection,
 } from "../../src/opencode/context-injection.js";
 import type { ResolvedFeatureToggles } from "../../src/types/feature-toggle-types.js";
@@ -152,7 +153,7 @@ test("prepareInjection skips on whitespace-only query", async () => {
   }
 });
 
-test("prepareInjection returns empty when no lessons match", async () => {
+test("prepareInjection injects the proposal protocol alone when no lessons match", async () => {
   const state = createInjectionState();
   const result = await prepareInjection(state, enabledToggles(), {
     sessionId: "s1",
@@ -161,12 +162,15 @@ test("prepareInjection returns empty when no lessons match", async () => {
     now: "2026-09-06T00:00:00.000Z",
   }, emptyRetrieve);
 
-  expect(result.status).toBe("empty");
-  if (result.status === "empty") {
-    expect(result.receipt.packedCount).toBe(0);
-    expect(result.receipt.retrievedCount).toBe(0);
+  expect(result.status).toBe("prepared");
+  if (result.status === "prepared") {
+    expect(result.pending.block).toBe(LESSON_PROPOSAL_PROTOCOL);
+    expect(result.pending.receipt.packedCount).toBe(0);
+    expect(result.pending.receipt.retrievedCount).toBe(0);
+    expect(result.pending.receipt.estimatedTokensUsed).toBe(0);
   }
-  expect(state.pending.size).toBe(0);
+  expect(state.pending.size).toBe(1);
+  expect(state.pending.has("s1")).toBe(true);
 });
 
 test("prepareInjection stores pending when lessons are found", async () => {
@@ -184,7 +188,12 @@ test("prepareInjection stores pending when lessons are found", async () => {
   if (result.status === "prepared") {
     expect(result.pending.sessionId).toBe("s1");
     expect(result.pending.messageId).toBe("m1");
+    expect(result.pending.block).toContain(LESSON_PROPOSAL_PROTOCOL);
+    expect(result.pending.block).toContain("Confirmed Lessons");
     expect(result.pending.block).toContain("Lesson L1");
+    expect(result.pending.block.indexOf(LESSON_PROPOSAL_PROTOCOL)).toBeLessThan(
+      result.pending.block.indexOf("Confirmed Lessons"),
+    );
     expect(result.pending.receipt.packedCount).toBe(1);
     expect(result.pending.receipt.semantic).toEqual({ status: "unavailable", candidateCount: 0 });
     expect(result.pending.preparedAt).toBe("2026-09-06T00:00:00.000Z");
@@ -216,7 +225,7 @@ test("prepareInjection exposes successful semantic availability in its receipt",
   }
 });
 
-test("prepareInjection suppresses on ambiguous correlation and clears stale pending", async () => {
+test("prepareInjection replaces pending when a newer message queues in the same session", async () => {
   const state = createInjectionState();
   const lessons = [makeLesson("L1")];
 
@@ -238,11 +247,12 @@ test("prepareInjection suppresses on ambiguous correlation and clears stale pend
     now: "2026-09-06T00:01:00.000Z",
   }, stubRetrieve(lessons));
 
-  expect(second.status).toBe("skipped");
-  if (second.status === "skipped") {
-    expect(second.reason).toBe("ambiguous-correlation");
+  expect(second.status).toBe("prepared");
+  if (second.status === "prepared") {
+    expect(second.pending.messageId).toBe("m2");
+    expect(second.pending.receipt.query).toBe("second query");
   }
-  expect(state.pending.size).toBe(0);
+  expect(state.pending.size).toBe(1);
 });
 
 test("prepareInjection returns failed when retrieval throws", async () => {
@@ -345,7 +355,7 @@ test("applyInjection pushes block when system array is empty", async () => {
   expect(system[0]).toContain("Confirmed Lessons");
 });
 
-test("applyInjection clears pending state after application", async () => {
+test("applyInjection keeps pending so every LLM request of the turn gets the block", async () => {
   const state = createInjectionState();
   const lessons = [makeLesson("L1")];
   await prepareInjection(state, enabledToggles(), {
@@ -356,11 +366,15 @@ test("applyInjection clears pending state after application", async () => {
   }, stubRetrieve(lessons));
 
   expect(state.pending.size).toBe(1);
-  applyInjection(state, "s1", ["block"]);
-  expect(state.pending.size).toBe(0);
+  const firstApply = applyInjection(state, "s1", ["block"]);
+  expect(firstApply.status).toBe("applied");
+  expect(state.pending.size).toBe(1);
 
+  // A second LLM request of the same turn (title fork, tool-loop step, …)
+  // starts from a fresh system array and must receive the block exactly once.
   const secondApply = applyInjection(state, "s1", ["block"]);
-  expect(secondApply.status).toBe("skipped");
+  expect(secondApply.status).toBe("applied");
+  expect(state.pending.size).toBe(1);
 });
 
 test("applyInjection returns receipt with correct counts", async () => {
@@ -427,7 +441,7 @@ test("concurrent sessions do not cross-contaminate", async () => {
   expect(systemB[0]).toContain("Lesson B");
   expect(systemB[0]).not.toContain("Lesson A");
 
-  expect(state.pending.size).toBe(0);
+  expect(state.pending.size).toBe(2);
 });
 
 test("clearPendingInjection removes a pending entry", async () => {

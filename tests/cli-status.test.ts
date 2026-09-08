@@ -10,11 +10,39 @@ import {
 } from "../src/core/index.js";
 import { main } from "../src/cli/index.js";
 
+function setEnv(key: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
+}
+
 async function withTestDir(run: (dir: string) => void | Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-cli-status-"));
+  // Isolate managed path resolution. darwin bases paths on homedir(), which
+  // Bun's os.homedir() does not derive from $HOME, so the explicit data-dir
+  // override is what actually isolates diagnostics and backups.
+  const previous = {
+    dataDir: process.env.OPENCODE_SWE_FACTORY_DATA_DIR,
+    home: process.env.HOME,
+    data: process.env.XDG_DATA_HOME,
+    cache: process.env.XDG_CACHE_HOME,
+    config: process.env.XDG_CONFIG_HOME,
+  };
+  process.env.OPENCODE_SWE_FACTORY_DATA_DIR = join(directory, "data");
+  setEnv("HOME", directory);
+  setEnv("XDG_DATA_HOME", directory);
+  setEnv("XDG_CACHE_HOME", directory);
+  setEnv("XDG_CONFIG_HOME", directory);
   try {
     await run(directory);
   } finally {
+    setEnv("OPENCODE_SWE_FACTORY_DATA_DIR", previous.dataDir);
+    setEnv("HOME", previous.home);
+    setEnv("XDG_DATA_HOME", previous.data);
+    setEnv("XDG_CACHE_HOME", previous.cache);
+    setEnv("XDG_CONFIG_HOME", previous.config);
     rmSync(directory, { recursive: true, force: true });
   }
 }

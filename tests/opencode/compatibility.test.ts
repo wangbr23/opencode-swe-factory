@@ -11,15 +11,19 @@ import {
   type SystemTransformHook,
 } from "./fixtures.js";
 
-test("the tested-version manifest admits only the OpenCode 1.18.27 baseline", () => {
+test("the tested-version manifest admits only contract-tested OpenCode versions", () => {
   expect(OPENCODE_COMPATIBILITY_MANIFEST).toEqual({
     schemaVersion: 1,
     minimumVersion: "1.18.27",
-    testedVersions: ["1.18.27"],
+    testedVersions: ["1.18.27", "1.18.29"],
   });
   expect(checkOpenCodeCompatibility("1.18.27")).toEqual({
     status: "supported",
     version: "1.18.27",
+  });
+  expect(checkOpenCodeCompatibility("1.18.29")).toEqual({
+    status: "supported",
+    version: "1.18.29",
   });
 });
 

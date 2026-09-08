@@ -31,9 +31,8 @@ export type PrepareInjectionResult =
   | Readonly<{ status: "prepared"; pending: PendingInjection }>
   | Readonly<{
       status: "skipped";
-      reason: "retrieval-disabled" | "private-mode" | "empty-query" | "ambiguous-correlation";
+      reason: "retrieval-disabled" | "private-mode" | "empty-query";
     }>
-  | Readonly<{ status: "empty"; receipt: RetrievalReceipt }>
   | Readonly<{ status: "failed"; error: string }>;
 
 export type ApplyInjectionResult =

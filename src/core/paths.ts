@@ -96,7 +96,8 @@ export function resolveManagedPaths(input: ResolveManagedPathsInput = {}): Manag
         : resolveWindowsBaseDirectory(homeDirectory, platform, packageName, "cache directory", readEnvPath(env, "LOCALAPPDATA"), "AppData/Local");
 
   const configDirectory = pathModule.join(configBase, packageName);
-  const dataDirectory = pathModule.join(dataBase, packageName, "data");
+  const dataOverride = readEnvPath(env, "OPENCODE_SWE_FACTORY_DATA_DIR");
+  const dataDirectory = dataOverride ?? pathModule.join(dataBase, packageName, "data");
   const cacheDirectory = pathModule.join(cacheBase, packageName, "cache");
   const backupDirectory = pathModule.join(dataDirectory, "backups");
 

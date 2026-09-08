@@ -15,6 +15,7 @@ import { resolveEmbeddingArtifactDirectory } from "../core/embedding-artifacts.j
 import { recordLessonRetrievalHits } from "../core/lesson-usage-tracking.js";
 import { resolveManagedPaths } from "../core/paths.js";
 import { resolveProjectIdentity } from "../core/project-identity.js";
+import { createShellVersionProbe, resolveRuntimeOpenCodeVersion } from "./runtime-version.js";
 import { profileTask } from "../core/task-profile.js";
 import { scanTextForSecrets } from "../core/secrets.js";
 import { featureTogglesForScope, resolveFeatureToggles } from "../core/feature-toggles.js";
@@ -622,10 +623,10 @@ export const server: Plugin = async (input, options) => {
     const connection = openSqliteConnection(dbPath);
     migrateSqliteSchema(connection, releaseSchemaMigrations);
 
-    const version =
-      typeof options?.openCodeVersion === "string"
-        ? options.openCodeVersion
-        : undefined;
+    const version = await resolveRuntimeOpenCodeVersion(
+      options?.openCodeVersion,
+      createShellVersionProbe(input.$),
+    );
 
     const compatibility: OpenCodeCompatibility = version
       ? checkOpenCodeCompatibility(version)
@@ -638,6 +639,27 @@ export const server: Plugin = async (input, options) => {
     const projectResult = resolveProjectIdentity(connection, {
       projectPath: input.directory,
     });
+
+    // The init compatibility outcome is recorded so degraded installs are
+    // always explainable via the CLI status/diagnostics view.
+    try {
+      await writeLocalDiagnostic(
+        {
+          component: "plugin-init",
+          code: "compatibility",
+          severity: compatibility.status === "supported" ? "info" : "warning",
+          summary:
+            compatibility.status === "supported"
+              ? `OpenCode ${compatibility.version}: context injection and routing enabled.`
+              : `OpenCode ${compatibility.version} (${compatibility.reason}): context injection and routing disabled; CLI and memory tools remain available.`,
+        },
+        {
+          filePath: join(paths.dataDirectory, "diagnostics.jsonl"),
+        },
+      );
+    } catch {
+      // fail-open: diagnostics are observability, not a startup dependency
+    }
 
     return composePluginHooks({
       connection,

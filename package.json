@@ -30,7 +30,7 @@
     }
   },
   "devDependencies": {
-    "@opencode-ai/plugin": "1.18.27",
+    "@opencode-ai/plugin": "1.18.29",
     "bun-types": "latest",
     "typescript": "latest"
   },
@@ -50,6 +50,10 @@
     "./opencode": {
       "types": "./dist/opencode/index.d.ts",
       "default": "./dist/opencode/index.js"
+    },
+    "./server": {
+      "types": "./dist/opencode/plugin-entry.d.ts",
+      "default": "./dist/opencode/plugin-entry.js"
     }
   }
 }

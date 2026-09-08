@@ -1,7 +1,7 @@
 export const OPENCODE_COMPATIBILITY_MANIFEST = {
   schemaVersion: 1,
   minimumVersion: "1.18.27",
-  testedVersions: ["1.18.27"],
+  testedVersions: ["1.18.27", "1.18.29"],
 } as const;
 
 export type OpenCodeCompatibility =

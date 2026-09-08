@@ -211,3 +211,33 @@ Append-only log of architecture decisions. One entry per decision, newest at the
 **Decision:** The evaluator's dedup state lives in the drafts themselves: every automatic proposal marks its provenance (`trigger: "automatic"` plus `evidenceTaskIds`), and evaluation excludes tasks cited by any pending candidate or confirmed project lesson carrying that marker. A proposal therefore consumes its evidence; only fresh successes accumulate toward the next one, and a still-pending automatic candidate blocks re-evaluation. Strong evidence is defined as either an explicit user acceptance (the only positive human control, exact confidence) on a completed task — the `strong-signal` trigger — or at least `minVerifiedSuccesses` (default 3, minimum 2) completed tasks each carrying a tool success in a verification category (test/lint/typecheck/build/review) — the `repeated-success` trigger. The `generic` tool category never counts as verification, any effective negative signal (including a retracted acceptance's superseding correction) disqualifies its task, and tasks with zero positive signals are invisible to the evaluator.
 
 **Consequences:** No new tables or scheduler cursors are required for correctness; the T72 scheduler can still narrow evaluation with an optional `since` bound. The cost is that a rejected automatic proposal releases its tasks for re-proposal (intended — rejection is the human saying "not a lesson") while an approved one permanently consumes them (intended — the lesson now exists). If real usage shows the strict negative disqualification suppresses most proposals, loosening it is a deliberate threshold change to revisit with live evidence, consistent with the T93 review gate.
+
+## 2026-09-08 — Context injection is sticky for the turn; a queued newer message replaces pending
+
+**Status:** Accepted (supersedes the exactly-once consumption contract from the T47 suite)
+
+**Context:** Live OpenCode fires `experimental.chat.system.transform` for every LLM request of a turn — the forked title-generation and summary small-model requests, and each tool-loop step — each with a fresh system array. Exactly-once consumption meant whichever request transformed first consumed the pending block: on a session's first message the title request reliably won, so lessons and the proposal protocol never reached the main request, and even without those forks the block would have vanished from context after the first tool step of any multi-step turn. The old contract was validated against a fixture lifecycle, not the real one.
+
+**Decision:** `applyInjection` no longer consumes pending state; the block stays available until the next `prepareInjection` replaces it, so every LLM request of the turn carries it exactly once. A newer message in the same session overwrites pending (latest retrieval wins) instead of tripping the removed `ambiguous-correlation` suppression — overwrite is deterministic under message queueing.
+
+**Consequences:** Title/summary/compaction requests also carry the block, a few hundred tokens of per-turn overhead accepted for correctness. Subagents keep their own session IDs and never see the parent's pending block. The "exactly once" property moved from the state machine to the request lifecycle (fresh system array per request); the T47 contract tests were rewritten to assert per-request presence, latest-wins queueing, and unchanged session isolation. If per-request duplication later shows up as a real cost, the fix is scoping the transform to a request kind, which requires an OpenCode contract change (T65 territory).
+
+## 2026-09-08 — The OpenCode version is probed from the shell, with an init compatibility diagnostic
+
+**Status:** Accepted (replaces the `options.openCodeVersion` assumption)
+
+**Context:** Live OpenCode passes plugin options only as config-tuple records and the plugin input carries no version field, so `options?.openCodeVersion` was always undefined in production. The compatibility check evaluated "unknown" as `unsupported`, silently disabling context injection and routing in every real install while tools, the database, and task capture kept working — indistinguishable from a healthy install without reading diagnostics. No test covered the init path: the contract suites inject `compatibility` into `composePluginHooks` directly, bypassing `server`.
+
+**Decision:** The plugin resolves the version by running `opencode --version` through Bun's shell (`src/opencode/runtime-version.ts`, 2s timeout, first semver-looking token extracted). An explicit `options.openCodeVersion` still wins, keeping the test harness deterministic. An unresolvable version stays `unsupported` — fail safe rather than guessing. Initialization always writes a `plugin-init/compatibility` diagnostic recording the resolved version and the enabled/disabled outcome, so a degraded install is explainable through the CLI `status` view.
+
+**Consequences:** Process startup pays one shell probe (~50–100ms). A manifest-listed OpenCode that cannot be probed (missing PATH, sandboxed shell) degrades to disabled-with-diagnostic instead of silently guessing compatibility; the diagnostic makes that state user-visible. T65's runtime probe remains the intended long-term replacement for version strings as the compatibility source.
+
+## 2026-09-08 — The packaged plugin entry is `exports["./server"]` with a `{ id, server }` default export
+
+**Status:** Accepted
+
+**Context:** OpenCode's plugin loader resolves package specs through the package's `exports["./server"]` entry, and for file-source plugins requires the module's default export to be `{ id, server }` (`readV1Plugin` + `resolvePluginId` throw on a missing `id`). Falling back to the loader's legacy scan would treat every named function export of `dist/opencode/index.js` as a separate plugin. Installing into pookie-employer exercised this path for the first time.
+
+**Decision:** The package exposes `"./server"` → `dist/opencode/plugin-entry.js`, whose default export is `{ id: "opencode-swe-factory", server }`. File-path installs in `opencode.json` point at the package root directory so the loader resolves through `package.json`.
+
+**Consequences:** Published npm installs and local `file://` installs share one entry contract; the `./opencode` index stays a library surface that the loader never imports. The `id` in the entry must stay in sync with the package name (npm-source installs would derive it from `package.json` instead).
