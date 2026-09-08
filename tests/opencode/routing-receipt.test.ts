@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { EVIDENCE_AGGREGATION_CONSTANTS } from "../../src/core/evidence-aggregation-constants.js";
+import { EVIDENCE_AGGREGATION_CONSTANTS } from "../../src/core/evidence/evidence-aggregation-constants.js";
 import type {
   DecayedDimensionEstimate,
   DecayedEvidenceSummary,

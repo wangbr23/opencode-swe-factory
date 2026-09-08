@@ -1,4 +1,4 @@
-import { recommendModel } from "../core/model-recommendation.js";
+import { recommendModel } from "../core/models/model-recommendation.js";
 import type { ModelAllowlistEntry } from "../types/config-types.js";
 import type { SqliteConnection } from "../types/sqlite-types.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";

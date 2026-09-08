@@ -1,5 +1,5 @@
 import type { OutcomeDimension } from "./execution-profile-types.js";
-import type { TaskActivity, TaskComplexity, TaskDomain } from "../core/task-taxonomy.js";
+import type { TaskActivity, TaskComplexity, TaskDomain } from "../core/tasks/task-taxonomy.js";
 
 export type EvidenceBackoffLevel = 0 | 1 | 2 | 3;
 

@@ -1,7 +1,7 @@
-import { buildSessionEndCandidateReview } from "../core/session-end-review.js";
+import { buildSessionEndCandidateReview } from "../core/lessons/session-end-review.js";
 import { writeLocalDiagnostic } from "../core/diagnostics.js";
 import { join } from "node:path";
-import type { SqliteConnection } from "../core/sqlite.js";
+import type { SqliteConnection } from "../core/db/sqlite.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 import type { SessionEndCandidateReview } from "../types/session-end-review-types.js";
 

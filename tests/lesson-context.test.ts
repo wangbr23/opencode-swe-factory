@@ -4,7 +4,7 @@ import {
   DEFAULT_LESSON_TOKEN_BUDGET,
   estimateTokenCount,
   packLessonContext,
-} from "../src/core/lesson-context.js";
+} from "../src/core/lessons/lesson-context.js";
 import type { LexicalLessonResult } from "../src/core/index.js";
 import type { SuppressedLesson } from "../src/types/lesson-conflict-suppression-types.js";
 

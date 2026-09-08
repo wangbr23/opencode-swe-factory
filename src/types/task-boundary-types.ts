@@ -1,4 +1,4 @@
-import type { TaskBoundary } from "../core/task-taxonomy.js";
+import type { TaskBoundary } from "../core/tasks/task-taxonomy.js";
 import type { TaskProfile, ProfileTaskInput } from "./task-profile-types.js";
 
 export type ProfileTaskFn = (input: ProfileTaskInput) => Promise<TaskProfile>;

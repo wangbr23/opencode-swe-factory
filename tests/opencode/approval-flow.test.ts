@@ -138,6 +138,9 @@ test("formatApprovalCard formats a global lesson proposal", () => {
   expect(card).toContain("Test body content.");
   expect(card).toContain("Rationale: Test rationale.");
   expect(card).toContain("Candidate ID: candidate-1");
+  expect(card).toContain(
+    "Present this candidate for approval now via the question tool",
+  );
   expect(card).not.toContain("Project:");
   expect(card).not.toContain("Warning:");
   expect(card).not.toContain("Overlapping");

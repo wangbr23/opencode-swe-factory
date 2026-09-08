@@ -8,7 +8,7 @@ import type {
   ModelRoutingCandidate,
 } from "./model-eligibility-types.js";
 import type { EvidenceGateEvaluation } from "./model-recommendation-types.js";
-import type { TaskRisk } from "../core/task-taxonomy.js";
+import type { TaskRisk } from "../core/tasks/task-taxonomy.js";
 
 export type RoutingReplayModelIdentity = Readonly<{
   provider: string;

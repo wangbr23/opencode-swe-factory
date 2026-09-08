@@ -1,5 +1,5 @@
-import { suppressConflictingLessons } from "../core/lesson-conflict-suppression.js";
-import { packLessonContext } from "../core/lesson-context.js";
+import { suppressConflictingLessons } from "../core/lessons/lesson-conflict-suppression.js";
+import { packLessonContext } from "../core/lessons/lesson-context.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 import type {
   ApplyInjectionResult,
@@ -22,8 +22,10 @@ export type {
 export const LESSON_PROPOSAL_PROTOCOL = [
   "## Lesson Capture Protocol",
   "",
-  "When the user corrects your work, explicitly praises an approach, states a standing preference for how you should work, or a verified method keeps succeeding, propose it as a lesson via the swe_factory_propose_lesson tool.",
-  "Proposals are drafts awaiting human approval — never treat them as confirmed. Never include secrets or credential-like content in a proposal.",
+  "A lesson is anything from this session that a future session should repeat or avoid: work that went well and should be repeated, or a mistake, correction, or expressed preference that should change how you work. Judge the substance, not the user's exact words.",
+  "Bias toward proposing. Proposals are drafts awaiting human approval and expire if ignored, so a wasted proposal costs seconds while a missed lesson repeats the mistake. Recording something in repo docs, a journal, or a summary does not substitute for proposing it.",
+  "When a lesson-worthy moment happens, propose it via the swe_factory_propose_lesson tool in the same turn, proactively — never wait to be asked. Never include secrets or credential-like content in a proposal.",
+  "Immediately after a proposal returns, present it for approval via the question tool (or your environment's equivalent interactive ask) with Approve / Edit / Defer / Reject options. Never just list the candidate in text.",
 ].join("\n");
 
 export function createInjectionState(): InjectionState {

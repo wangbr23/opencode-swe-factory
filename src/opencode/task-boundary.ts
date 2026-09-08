@@ -2,9 +2,9 @@ import {
   createTask,
   persistTaskProfile,
   completeTask,
-} from "../core/task-persistence.js";
-import type { TaskBoundary } from "../core/task-taxonomy.js";
-import type { SqliteConnection } from "../core/sqlite.js";
+} from "../core/tasks/task-persistence.js";
+import type { TaskBoundary } from "../core/tasks/task-taxonomy.js";
+import type { SqliteConnection } from "../core/db/sqlite.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 import type {
   ActiveTask,

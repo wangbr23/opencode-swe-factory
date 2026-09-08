@@ -15,7 +15,7 @@ import {
   type SqliteConnection,
 } from "../src/core/index.js";
 import { EMBEDDING_VECTOR_DIMENSIONS } from "../src/types/embedding-types.js";
-import { PINNED_EMBEDDING_MODEL_ID, PINNED_EMBEDDING_MODEL_REVISION } from "../src/core/embedding-artifact-manifest.js";
+import { PINNED_EMBEDDING_MODEL_ID, PINNED_EMBEDDING_MODEL_REVISION } from "../src/core/documents/embedding-artifact-manifest.js";
 
 const NOW = new Date("2026-09-06T00:00:00.000Z");
 const NOW_ISO = NOW.toISOString();

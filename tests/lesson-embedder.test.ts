@@ -9,7 +9,7 @@ import {
   createLocalLessonEmbedder,
 } from "../src/core/index.js";
 import { EMBEDDING_VECTOR_DIMENSIONS } from "../src/types/embedding-types.js";
-import { PINNED_EMBEDDING_ARTIFACTS } from "../src/core/embedding-artifact-manifest.js";
+import { PINNED_EMBEDDING_ARTIFACTS } from "../src/core/documents/embedding-artifact-manifest.js";
 import type { PinnedEmbeddingArtifact } from "../src/types/embedding-artifact-types.js";
 import type { FeatureExtractionOutput, TransformersModule } from "../src/types/lesson-embedder-types.js";
 

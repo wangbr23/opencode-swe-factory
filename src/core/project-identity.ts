@@ -11,7 +11,7 @@ import type {
   ResolvedProject,
   ResolveProjectIdentityInput,
 } from "../types/project-identity-types.js";
-import type { SqliteConnection } from "./sqlite.js";
+import type { SqliteConnection } from "./db/sqlite.js";
 
 export type {
   ProjectIdentityResult,

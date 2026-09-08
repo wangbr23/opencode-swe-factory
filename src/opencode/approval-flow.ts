@@ -1,6 +1,6 @@
-import { reviewLessonCandidate } from "../core/lessons.js";
-import { supersedeLesson } from "../core/lesson-supersession.js";
-import type { SqliteConnection } from "../core/sqlite.js";
+import { reviewLessonCandidate } from "../core/lessons/lessons.js";
+import { supersedeLesson } from "../core/lessons/lesson-supersession.js";
+import type { SqliteConnection } from "../core/db/sqlite.js";
 import type { ProposeLessonToolResult, ScanTextFn } from "../types/lesson-tool-types.js";
 import type {
   EditAndReproposeInput,
@@ -58,6 +58,10 @@ export function formatApprovalCard(result: ProposeLessonToolResult): string {
 
   lines.push("");
   lines.push(`Candidate ID: ${candidate.id}`);
+  lines.push("");
+  lines.push(
+    "Present this candidate for approval now via the question tool with Approve / Edit / Defer / Reject options — do not just list it in text.",
+  );
 
   return lines.join("\n");
 }

@@ -9,14 +9,15 @@ import {
   openSqliteConnection,
   releaseSchemaMigrations,
 } from "../core/index.js";
-import { retrieveConfirmedLessonsHybrid } from "../core/lesson-hybrid-retrieval.js";
-import { createLocalLessonEmbedder } from "../core/lesson-embedder.js";
-import { resolveEmbeddingArtifactDirectory } from "../core/embedding-artifacts.js";
-import { recordLessonRetrievalHits } from "../core/lesson-usage-tracking.js";
+import { retrieveConfirmedLessonsHybrid } from "../core/lessons/lesson-hybrid-retrieval.js";
+import { createLocalLessonEmbedder } from "../core/lessons/lesson-embedder.js";
+import { resolveEmbeddingArtifactDirectory } from "../core/documents/embedding-artifacts.js";
+import { recordLessonRetrievalHits } from "../core/lessons/lesson-usage-tracking.js";
 import { resolveManagedPaths } from "../core/paths.js";
 import { resolveProjectIdentity } from "../core/project-identity.js";
 import { createShellVersionProbe, resolveRuntimeOpenCodeVersion } from "./runtime-version.js";
-import { profileTask } from "../core/task-profile.js";
+import { installLessonProtocolDoc } from "./protocol-doc.js";
+import { profileTask } from "../core/tasks/task-profile.js";
 import { scanTextForSecrets } from "../core/secrets.js";
 import { featureTogglesForScope, resolveFeatureToggles } from "../core/feature-toggles.js";
 import type { ConfigV1 } from "../types/config-types.js";
@@ -382,7 +383,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
     tool: {
       swe_factory_propose_lesson: tool({
         description:
-          "Propose a new coding lesson for human approval. The lesson captures a correction, successful method, or coding insight.",
+          "Propose a new coding lesson for human approval. Propose proactively, in the same turn, whenever session work yields something future sessions should repeat or avoid — a correction, a mistake to avoid, a method that worked, a standing preference — regardless of the user's exact words. Bias toward proposing: proposals are human-gated drafts that expire if ignored.",
         args: {
           title: tool.schema.string().describe("Short title for the lesson"),
           body: tool.schema
@@ -443,7 +444,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
 
       swe_factory_commit_lesson: tool({
         description:
-          "Commit a pending lesson candidate — approve, reject, or defer it.",
+          "Commit a pending lesson candidate — approve, reject, or defer it. Invoke after the user answers the approval question card for a proposed candidate.",
         args: {
           candidateId: tool.schema
             .string()
@@ -639,6 +640,29 @@ export const server: Plugin = async (input, options) => {
     const projectResult = resolveProjectIdentity(connection, {
       projectPath: input.directory,
     });
+
+    // Keep the lesson-capture protocol present in the host project's
+    // AGENTS.md so non-OpenCode agents see it too. Fail-open: a doc install
+    // problem must never block session startup.
+    try {
+      const docResult = installLessonProtocolDoc({ projectDirectory: input.directory });
+      await writeLocalDiagnostic(
+        {
+          component: "plugin-init",
+          code: "protocol-doc",
+          severity: docResult.status === "failed" ? "warning" : "info",
+          summary:
+            docResult.status === "failed"
+              ? `Lesson-capture protocol not installed in AGENTS.md: ${docResult.error}`
+              : `Lesson-capture protocol ${docResult.status} in ${docResult.filePath}.`,
+        },
+        {
+          filePath: join(paths.dataDirectory, "diagnostics.jsonl"),
+        },
+      );
+    } catch {
+      // fail-open: diagnostics are observability, not a startup dependency
+    }
 
     // The init compatibility outcome is recorded so degraded installs are
     // always explainable via the CLI status/diagnostics view.

@@ -1,6 +1,6 @@
-import { proposeLessonCandidate, reviewLessonCandidate } from "../core/lessons.js";
-import { detectLessonDuplicatesAndConflicts } from "../core/lesson-duplicate-detection.js";
-import type { SqliteConnection } from "../core/sqlite.js";
+import { proposeLessonCandidate, reviewLessonCandidate } from "../core/lessons/lessons.js";
+import { detectLessonDuplicatesAndConflicts } from "../core/lessons/lesson-duplicate-detection.js";
+import type { SqliteConnection } from "../core/db/sqlite.js";
 import type {
   CommitLessonToolInput,
   CommitLessonToolResult,

@@ -19,6 +19,13 @@ Project-specific coding standards for agents and humans. Keep this practical and
 - Keep code close to where it is used until it has a reason to move.
 - Prefer explicit names that describe domain intent over generic names like `data`, `item`, or `helper`.
 
+## Folder organization
+
+- Group files by domain into subfolders; never let one folder accumulate a large unstructured file list. As of 2026-09-08, `src/core` is organized into domain folders (`db/`, `lessons/`, `documents/`, `tasks/`, `evidence/`, `models/`, `routing-replay/`, `backup/`) with only cross-cutting singletons left at its root (`index.ts` barrel, `constants.ts`, `config.ts`, `feature-toggles.ts`, `diagnostics.ts`, `paths.ts`, `secrets.ts`, `project-identity.ts`).
+- New core files go into the domain folder that matches their concern, not the core root. Only add a file to `src/core` root if it is genuinely cross-cutting (used across most domains).
+- When any folder approaches ~20 files, split it into sub-domain folders the same way (e.g. `lessons/` would naturally split retrieval concerns into `lessons/retrieval/`).
+- Prefer singular, domain-named folders that match the file family inside them; keep `-constants` files beside the module they parameterize.
+
 ## Type safety
 
 - Avoid `any`, broad casts, non-null assertions, and ignored type errors unless there is a documented reason.

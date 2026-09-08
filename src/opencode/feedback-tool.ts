@@ -1,5 +1,5 @@
-import { recordExplicitFeedback } from "../core/feedback-signals.js";
-import type { SqliteConnection } from "../core/sqlite.js";
+import { recordExplicitFeedback } from "../core/evidence/feedback-signals.js";
+import type { SqliteConnection } from "../core/db/sqlite.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 import type {
   RecordFeedbackToolInput,

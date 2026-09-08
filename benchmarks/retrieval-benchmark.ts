@@ -2,13 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { suppressConflictingLessons } from "../src/core/lesson-conflict-suppression.js";
-import { packLessonContext } from "../src/core/lesson-context.js";
-import { indexConfirmedLessonEmbeddings } from "../src/core/lesson-embedding-index.js";
-import { retrieveConfirmedLessonsHybrid } from "../src/core/lesson-hybrid-retrieval.js";
-import { migrateSqliteSchema } from "../src/core/migrations.js";
-import { releaseSchemaMigrations } from "../src/core/schema.js";
-import { openSqliteConnection, type SqliteConnection } from "../src/core/sqlite.js";
+import { suppressConflictingLessons } from "../src/core/lessons/lesson-conflict-suppression.js";
+import { packLessonContext } from "../src/core/lessons/lesson-context.js";
+import { indexConfirmedLessonEmbeddings } from "../src/core/lessons/lesson-embedding-index.js";
+import { retrieveConfirmedLessonsHybrid } from "../src/core/lessons/lesson-hybrid-retrieval.js";
+import { migrateSqliteSchema } from "../src/core/db/migrations.js";
+import { releaseSchemaMigrations } from "../src/core/db/schema.js";
+import { openSqliteConnection, type SqliteConnection } from "../src/core/db/sqlite.js";
 import type {
   ConfirmedLessonBenchmarkCase,
   ConfirmedLessonBenchmarkLesson,

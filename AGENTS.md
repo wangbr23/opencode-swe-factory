@@ -29,6 +29,8 @@ This section is only for what's specific to *this* repo:
 ## Architecture
 A single publishable package exposes a tool-neutral core, CLI, and OpenCode adapter. V1 owns a local SQLite store, human-approved lesson retrieval, privacy-bounded task evidence, and evidence-based model recommendations; the adapter translates OpenCode hooks and tools into core operations. Curated-document retrieval, phase-transition retrieval, and automatic model mutation are deferred until the two core value loops are validated. See [`docs/designs/2026-09-05-governed-memory-router-v1.md`](docs/designs/2026-09-05-governed-memory-router-v1.md).
 
+`src/core` is grouped by domain (`db/`, `lessons/`, `documents/`, `tasks/`, `evidence/`, `models/`, `routing-replay/`, `backup/`); only cross-cutting singletons sit at its root alongside the `index.ts` barrel. Folder-growth rules live in `CLEANCODE.md` (Folder organization).
+
 ## Context files
 Keep these current — they're what gives any session, model, or tool continuity without re-deriving history from scratch.
 

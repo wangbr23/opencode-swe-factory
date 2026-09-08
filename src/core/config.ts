@@ -23,7 +23,7 @@ import type {
   ScopeConfig,
   ScopeToggle,
 } from "../types/config-types.js";
-import { MODEL_RANKING_CONSTANTS } from "./model-ranking-constants.js";
+import { MODEL_RANKING_CONSTANTS } from "./models/model-ranking-constants.js";
 import { ensureOwnerOnlyDirectory, ensureOwnerOnlyFile, resolveManagedPaths } from "./paths.js";
 
 export { CONFIG_SCHEMA_VERSION } from "../types/config-types.js";

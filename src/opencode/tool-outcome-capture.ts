@@ -1,5 +1,5 @@
-import { recordToolOutcomeSignal } from "../core/tool-outcome-signals.js";
-import type { SqliteConnection } from "../core/sqlite.js";
+import { recordToolOutcomeSignal } from "../core/evidence/tool-outcome-signals.js";
+import type { SqliteConnection } from "../core/db/sqlite.js";
 import { getActiveTask } from "./task-boundary.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 import type { ToolFailureKind } from "../types/tool-outcome-signal-types.js";

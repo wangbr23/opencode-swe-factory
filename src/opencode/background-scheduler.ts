@@ -1,10 +1,10 @@
-import { runScheduledBackup } from "../core/backup.js";
+import { runScheduledBackup } from "../core/backup/backup.js";
 import { writeLocalDiagnostic } from "../core/diagnostics.js";
-import { buildLessonMaintenanceDigest } from "../core/lesson-maintenance-digest.js";
-import { evaluateAutomaticLessonProposal } from "../core/lesson-proposal-triggers.js";
-import { cleanupExpiredCandidates } from "../core/lessons.js";
+import { buildLessonMaintenanceDigest } from "../core/lessons/lesson-maintenance-digest.js";
+import { evaluateAutomaticLessonProposal } from "../core/lessons/lesson-proposal-triggers.js";
+import { cleanupExpiredCandidates } from "../core/lessons/lessons.js";
 import { join } from "node:path";
-import type { SqliteConnection } from "../core/sqlite.js";
+import type { SqliteConnection } from "../core/db/sqlite.js";
 import type { ConfigV1 } from "../types/config-types.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 

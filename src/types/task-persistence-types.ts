@@ -5,7 +5,7 @@ import type {
   TaskDomain,
   TaskProfileSignal,
   TaskRisk,
-} from "../core/task-taxonomy.js";
+} from "../core/tasks/task-taxonomy.js";
 
 export type CreateTaskInput = Readonly<{
   projectId: string;

@@ -2,8 +2,8 @@ import {
   recordExecutionProfile,
   recordOutcomeSignal,
   type RecordExecutionProfileInput,
-} from "../core/execution-profiles.js";
-import type { SqliteConnection } from "../core/sqlite.js";
+} from "../core/evidence/execution-profiles.js";
+import type { SqliteConnection } from "../core/db/sqlite.js";
 import { getActiveTask } from "./task-boundary.js";
 import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 import type {
