@@ -166,6 +166,7 @@ export function withPlugin(
     compatibility?: OpenCodeCompatibility;
     config?: PluginDependencies["config"];
     createLessonEmbedder?: PluginDependencies["createLessonEmbedder"];
+    backupDirectory?: string;
   },
 ): Promise<void> {
   const directory = mkdtempSync(
@@ -187,6 +188,9 @@ export function withPlugin(
       version: "1.18.27",
     },
     diagnosticsPath: directory,
+    ...(overrides?.backupDirectory !== undefined
+      ? { backupDirectory: overrides.backupDirectory }
+      : {}),
     ...(overrides?.createLessonEmbedder !== undefined
       ? { createLessonEmbedder: overrides.createLessonEmbedder }
       : {}),

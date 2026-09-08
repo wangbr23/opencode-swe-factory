@@ -55,6 +55,11 @@ import {
   handleSessionIdle,
 } from "./session-end-review.js";
 import {
+  createBackgroundSchedulerState,
+  runBackgroundMaintenance,
+  scheduleInitialBackgroundMaintenance,
+} from "./background-scheduler.js";
+import {
   createTaskBoundaryState,
   extractMessageText,
   handleTaskBoundary,
@@ -136,6 +141,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
   const toolOutcomeCaptureState = createToolOutcomeCaptureState();
   const routingReceiptState = createRoutingReceiptState();
   const sessionEndReviewState = createSessionEndReviewState();
+  const backgroundState = createBackgroundSchedulerState();
   const sessionTogglesMap = new Map<string, OpenCodeSessionToggles>();
   let embedder: EmbedLessonTextFn | undefined;
   let embedderStartup: Promise<void> | undefined;
@@ -277,6 +283,11 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
             event.properties.sessionID,
           );
           const toggles = resolveToggles(config, session);
+          await runBackgroundMaintenance(backgroundState, connection, config, toggles, {
+            projectId,
+            diagnosticsPath,
+            backupDirectory: deps.backupDirectory ?? null,
+          });
           await handleSessionIdle(sessionEndReviewState, connection, toggles, {
             sessionId: event.properties.sessionID,
             diagnosticsPath,
@@ -582,6 +593,18 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
     },
   };
 
+  scheduleInitialBackgroundMaintenance(
+    backgroundState,
+    connection,
+    config,
+    resolveToggles(config, createSessionToggles()),
+    {
+      projectId,
+      diagnosticsPath,
+      backupDirectory: deps.backupDirectory ?? null,
+    },
+  );
+
   return hooks;
 }
 
@@ -622,6 +645,7 @@ export const server: Plugin = async (input, options) => {
       projectId: projectResult.project.id,
       compatibility,
       diagnosticsPath: paths.dataDirectory,
+      backupDirectory: paths.backupDirectory,
       createLessonEmbedder: () => createLocalLessonEmbedder({
         artifactDirectory: resolveEmbeddingArtifactDirectory({
           cacheDirectory: paths.cacheDirectory,

@@ -11,6 +11,8 @@ export type PluginDependencies = Readonly<{
   diagnosticsPath: string;
   /** Optional so the plugin can run without the semantic runtime. */
   createLessonEmbedder?: () => Promise<EmbedLessonTextFn>;
+  /** Managed backup directory; background backup checks are skipped when absent. */
+  backupDirectory?: string;
 }>;
 
 export type PluginInitFailure = Readonly<{
