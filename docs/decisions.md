@@ -241,3 +241,13 @@ Append-only log of architecture decisions. One entry per decision, newest at the
 **Decision:** The package exposes `"./server"` → `dist/opencode/plugin-entry.js`, whose default export is `{ id: "opencode-swe-factory", server }`. File-path installs in `opencode.json` point at the package root directory so the loader resolves through `package.json`.
 
 **Consequences:** Published npm installs and local `file://` installs share one entry contract; the `./opencode` index stays a library surface that the loader never imports. The `id` in the entry must stay in sync with the package name (npm-source installs would derive it from `package.json` instead).
+
+## 2026-09-08 — Preference ingestion is model-driven, propose-on-first-statement, approval-gated
+
+**Status:** Accepted (T96 scope decision, [design](designs/2026-09-08-automatic-preference-ingestion.md))
+
+**Context:** T96 left three questions open: whether utterances may be mined for preferences, whether a preference must repeat across sessions before proposing, and how scope is chosen. The proposal pipeline (secret scan, pending-candidate storage, approval card) already existed.
+
+**Decision:** Detection is model-driven (no plugin-side pattern matching). Any explicitly stated lasting preference proposes a draft on first statement — the cross-session repetition-confidence idea is dropped for explicit signals; the approval card is the gate, and repetition confidence only ever applies to implicit repeated-success signals. Scope is model-proposed (global for interaction preferences, project for repo conventions) and editable on the card via a replacement candidate. Raw utterances are never persisted; utterance text may appear only inside the reviewed draft, which is deleted on reject/expiry.
+
+**Consequences:** No new infrastructure — the decision ratifies the existing flow as the required path. Detection quality lives in the protocol text, so acceptance scenarios (T97) pin the happy path and secret-block path; over-proposal is absorbed by the card, under-proposal by silence.
