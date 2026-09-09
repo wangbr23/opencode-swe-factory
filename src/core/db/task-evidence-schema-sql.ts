@@ -1,3 +1,14 @@
+/**
+ * Single source for the tasks_identity_update trigger so explicit project
+ * merges can drop and recreate it byte-identically when reassigning tasks.
+ */
+export const CREATE_TASKS_IDENTITY_UPDATE_TRIGGER_SQL = `
+CREATE TRIGGER tasks_identity_update
+BEFORE UPDATE OF project_id, parent_task_id, session_id, host_task_id, boundary ON tasks BEGIN
+  SELECT RAISE(ABORT, 'task identity fields are immutable');
+END;
+`;
+
 export const CREATE_TASK_EVIDENCE_TABLES_SQL = `
 CREATE TABLE tasks (
   id TEXT PRIMARY KEY,
@@ -32,10 +43,7 @@ WHEN new.parent_task_id IS NOT NULL BEGIN
   );
 END;
 
-CREATE TRIGGER tasks_identity_update
-BEFORE UPDATE OF project_id, parent_task_id, session_id, host_task_id, boundary ON tasks BEGIN
-  SELECT RAISE(ABORT, 'task identity fields are immutable');
-END;
+${CREATE_TASKS_IDENTITY_UPDATE_TRIGGER_SQL}
 
 CREATE TABLE task_profiles (
   task_id TEXT NOT NULL REFERENCES tasks (id) ON DELETE CASCADE,

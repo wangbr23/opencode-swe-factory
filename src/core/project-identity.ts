@@ -4,6 +4,8 @@ import { isAbsolute, normalize } from "node:path";
 import { REMOTE_HASH_ALGORITHM, SUPPORTED_REMOTE_PROTOCOLS } from "../types/project-identity-types.js";
 import type {
   AliasRow,
+  MergeProjectsInput,
+  MergeProjectsResult,
   ProjectIdentityResult,
   ProjectRow,
   RelinkProjectInput,
@@ -11,6 +13,7 @@ import type {
   ResolvedProject,
   ResolveProjectIdentityInput,
 } from "../types/project-identity-types.js";
+import { CREATE_TASKS_IDENTITY_UPDATE_TRIGGER_SQL } from "./db/task-evidence-schema-sql.js";
 import type { SqliteConnection } from "./db/sqlite.js";
 
 export type {
@@ -20,6 +23,8 @@ export type {
   RelinkProjectResult,
   ResolvedProject,
   ResolveProjectIdentityInput,
+  MergeProjectsInput,
+  MergeProjectsResult,
 } from "../types/project-identity-types.js";
 
 export class ProjectIdentityError extends Error {
@@ -348,4 +353,156 @@ export function relinkProject(connection: SqliteConnection, input: RelinkProject
       remoteHash: newRemoteHash,
     };
   })();
+}
+
+/**
+ * Explicitly consolidates a duplicate project into a survivor. Both rows are
+ * identities for the same repository that resolveProjectIdentity refused to
+ * reconcile (e.g. a path-only record and a remote-keyed record for clones at
+ * different paths). The survivor keeps its primary path and remote; the
+ * absorbed project's path/remote aliases transfer, its project-scoped lessons,
+ * pending candidates, and tasks move, and a document index that can be rebuilt
+ * from authoritative sources is dropped. Global lessons have no project and
+ * are never touched.
+ */
+export function mergeProjects(connection: SqliteConnection, input: MergeProjectsInput): MergeProjectsResult {
+  if (input.survivorProjectId === input.absorbedProjectId) {
+    throw new ProjectIdentityError(input.survivorProjectId, "A project cannot be merged into itself.");
+  }
+
+  const now = (input.now ?? new Date()).toISOString();
+
+  return connection.database.transaction((): MergeProjectsResult => {
+    const survivor = queryProjectById(connection, input.survivorProjectId);
+    if (!survivor) {
+      throw new ProjectIdentityError(input.survivorProjectId, `Project ${input.survivorProjectId} not found.`);
+    }
+    const absorbed = queryProjectById(connection, input.absorbedProjectId);
+    if (!absorbed) {
+      throw new ProjectIdentityError(input.absorbedProjectId, `Project ${input.absorbedProjectId} not found.`);
+    }
+
+    // Transfer every alias claim to the survivor. Absorbed and survivor
+    // cannot share an alias value (the table's primary key is global), so a
+    // non-null claim at insert time always belongs to a third project and is
+    // a real conflict.
+    const absorbedAliases = connection.database
+      .query<{ alias_kind: string; alias_value: string; created_at: string }, [string]>(
+        "SELECT alias_kind, alias_value, created_at FROM project_aliases WHERE project_id = ?",
+      )
+      .all(absorbed.id);
+    connection.database.run("DELETE FROM project_aliases WHERE project_id = ?", [absorbed.id]);
+    const transferredPathAliases = new Set<string>();
+    const transferredRemoteAliases = new Set<string>();
+    for (const alias of absorbedAliases) {
+      if (alias.alias_kind === "path") {
+        insertPathAlias(connection, survivor.id, alias.alias_value, alias.created_at);
+        transferredPathAliases.add(alias.alias_value);
+      } else {
+        insertRemoteAlias(connection, survivor.id, alias.alias_value, alias.created_at);
+        transferredRemoteAliases.add(alias.alias_value);
+      }
+    }
+
+    // The primary path and remote must survive the absorbed row's deletion:
+    // re-claim them for the survivor unless an alias row already carries them.
+    // A primary path claimed by a third project while the absorbed project
+    // lacks its own alias row is an inconsistent database, but refusing with
+    // the canonical conflict error is safer than silently stealing the claim.
+    const primaryPathClaim = queryPathAliasClaim(connection, absorbed.path);
+    if (!primaryPathClaim) {
+      insertPathAlias(connection, survivor.id, absorbed.path, absorbed.created_at);
+      transferredPathAliases.add(absorbed.path);
+    } else if (primaryPathClaim.project_id !== survivor.id) {
+      insertPathAlias(connection, survivor.id, absorbed.path, absorbed.created_at);
+    }
+
+    // Document indexes are disposable: source files remain authoritative and
+    // the project activation reindex rebuilds missing rows on the survivor.
+    // Moving them would fight the chunk/source consistency triggers, so they
+    // are dropped with the absorbed project instead of reassigned.
+    const droppedDocumentSources =
+      connection.database
+        .query<{ count: number }, [string]>("SELECT count(*) AS count FROM document_sources WHERE project_id = ?")
+        .get(absorbed.id)?.count ?? 0;
+    const droppedDocumentChunks =
+      connection.database
+        .query<{ count: number }, [string]>("SELECT count(*) AS count FROM document_chunks WHERE project_id = ?")
+        .get(absorbed.id)?.count ?? 0;
+    connection.database.run("DELETE FROM document_sources WHERE project_id = ?", [absorbed.id]);
+
+    // bun's run().changes counts cascaded deletes and FTS-trigger writes, so
+    // moved-row counts come from before/after deltas instead.
+    const movedLessons = countProjectScopedRows(connection, "lessons", absorbed.id);
+    const movedPendingCandidates = countProjectScopedRows(
+      connection,
+      "pending_lesson_candidates",
+      absorbed.id,
+    );
+    const movedTasks = countProjectScopedRows(connection, "tasks", absorbed.id);
+
+    connection.database.run("UPDATE lessons SET project_id = ? WHERE project_id = ?", [survivor.id, absorbed.id]);
+    connection.database.run("UPDATE pending_lesson_candidates SET project_id = ? WHERE project_id = ?", [
+      survivor.id,
+      absorbed.id,
+    ]);
+
+    connection.database.run("DROP TRIGGER tasks_identity_update");
+    connection.database.run("UPDATE tasks SET project_id = ? WHERE project_id = ?", [survivor.id, absorbed.id]);
+    connection.database.run(CREATE_TASKS_IDENTITY_UPDATE_TRIGGER_SQL);
+
+    const survivorSettings = connection.database
+      .query<{ project_id: string }, [string]>("SELECT project_id FROM project_settings WHERE project_id = ?")
+      .get(survivor.id);
+    const keptSurvivorSettings = survivorSettings !== null && survivorSettings !== undefined;
+    if (keptSurvivorSettings) {
+      connection.database.run("DELETE FROM project_settings WHERE project_id = ?", [absorbed.id]);
+    } else {
+      connection.database.run("UPDATE project_settings SET project_id = ? WHERE project_id = ?", [
+        survivor.id,
+        absorbed.id,
+      ]);
+    }
+
+    // The absorbed row must be gone before its remote can be adopted: the
+    // projects.remote_hash unique index forbids two rows sharing a hash.
+    connection.database.run("DELETE FROM projects WHERE id = ?", [absorbed.id]);
+
+    const adoptedRemoteHash = survivor.remote_hash === null && absorbed.remote_hash !== null;
+    connection.database.run("UPDATE projects SET remote_hash = ?, updated_at = ? WHERE id = ?", [
+      adoptedRemoteHash ? absorbed.remote_hash : survivor.remote_hash,
+      now,
+      survivor.id,
+    ]);
+
+    return {
+      survivorProjectId: survivor.id,
+      absorbedProjectId: absorbed.id,
+      movedLessons,
+      movedPendingCandidates,
+      movedTasks,
+      transferredPathAliases: [...transferredPathAliases].sort(),
+      transferredRemoteAliases: [...transferredRemoteAliases].sort(),
+      adoptedRemoteHash,
+      droppedDocumentSources,
+      droppedDocumentChunks,
+      keptSurvivorSettings,
+    };
+  })();
+}
+
+function queryPathAliasClaim(connection: SqliteConnection, aliasValue: string): AliasRow | undefined {
+  return (
+    connection.database
+      .query<AliasRow, [string]>("SELECT project_id FROM project_aliases WHERE alias_kind = 'path' AND alias_value = ?")
+      .get(aliasValue) ?? undefined
+  );
+}
+
+function countProjectScopedRows(connection: SqliteConnection, table: string, projectId: string): number {
+  return (
+    connection.database
+      .query<{ count: number }, [string]>(`SELECT count(*) AS count FROM ${table} WHERE project_id = ?`)
+      .get(projectId)?.count ?? 0
+  );
 }

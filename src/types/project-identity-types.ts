@@ -48,3 +48,23 @@ export type RelinkProjectResult = Readonly<{
   previousRemoteHash: string | null;
   remoteHash: string | null;
 }>;
+
+export type MergeProjectsInput = Readonly<{
+  survivorProjectId: string;
+  absorbedProjectId: string;
+  now?: Date;
+}>;
+
+export type MergeProjectsResult = Readonly<{
+  survivorProjectId: string;
+  absorbedProjectId: string;
+  movedLessons: number;
+  movedPendingCandidates: number;
+  movedTasks: number;
+  transferredPathAliases: ReadonlyArray<string>;
+  transferredRemoteAliases: ReadonlyArray<string>;
+  adoptedRemoteHash: boolean;
+  droppedDocumentSources: number;
+  droppedDocumentChunks: number;
+  keptSurvivorSettings: boolean;
+}>;

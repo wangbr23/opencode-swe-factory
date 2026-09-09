@@ -40,6 +40,7 @@ import {
   reviewLessonCandidate,
   savePackageConfig,
   relinkProject,
+  mergeProjects,
   restoreDatabaseFromJsonl,
   supersedeLesson,
   verifyEmbeddingArtifacts,
@@ -85,6 +86,8 @@ Commands:
   feedback <task-id>        Record explicit feedback for a task
   evidence <task-id>        Inspect a task's recorded evidence signals
   relink <project-id>       Change a project's path or remote association
+  merge <keep-id> <absorb-id>
+                            Merge a duplicate project into the survivor
   export <path>             Export package-owned data as schema-versioned JSONL
   restore <path>            Replace the live database with a validated JSONL export
   hard-delete               Permanently delete all stored data and managed backups
@@ -115,6 +118,7 @@ Options:
 type ParsedArgs = Readonly<{
   command: string | undefined;
   commandArg: string | undefined;
+  secondCommandArg: string | undefined;
   databasePath: string | undefined;
   backupDirectory: string | undefined;
   configFilePath: string | undefined;
@@ -161,17 +165,23 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
 
   const command = positional[0];
   const multiWordCommands = new Set(["search", "config"]);
+  const twoArgumentCommands = new Set(["merge"]);
   const commandArg = multiWordCommands.has(command ?? "")
     ? positional.slice(1).join(" ") || undefined
     : positional[1];
+  const secondCommandArg = twoArgumentCommands.has(command ?? "") ? positional[2] : undefined;
 
-  if (!multiWordCommands.has(command ?? "") && positional.length > 2) {
+  if (!multiWordCommands.has(command ?? "") && !twoArgumentCommands.has(command ?? "") && positional.length > 2) {
     throw new Error(`Unexpected extra arguments: ${positional.slice(2).join(" ")}.`);
+  }
+  if (twoArgumentCommands.has(command ?? "") && positional.length > 3) {
+    throw new Error(`Unexpected extra arguments: ${positional.slice(3).join(" ")}.`);
   }
 
   return {
     command,
     commandArg,
+    secondCommandArg,
     databasePath: values.get("--database"),
     backupDirectory: values.get("--backup-dir"),
     configFilePath: values.get("--config"),
@@ -696,6 +706,42 @@ function runRelinkCommand(parsed: ParsedArgs): void {
   }
 }
 
+function runMergeCommand(parsed: ParsedArgs): void {
+  const survivorProjectId = parsed.commandArg;
+  const absorbedProjectId = parsed.secondCommandArg;
+  if (!survivorProjectId || !absorbedProjectId) {
+    throw new Error("Usage: merge <survivor-project-id> <absorbed-project-id>");
+  }
+
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const result = mergeProjects(connection, { survivorProjectId, absorbedProjectId });
+
+    for (const pathAlias of result.transferredPathAliases) {
+      console.log(`Path alias: ${pathAlias}`);
+    }
+    for (const remoteAlias of result.transferredRemoteAliases) {
+      console.log(`Remote alias: ${remoteAlias}`);
+    }
+    if (result.adoptedRemoteHash) {
+      console.log(`Adopted remote hash from the absorbed project.`);
+    }
+    console.log(
+      `Moved ${result.movedLessons} lesson(s), ${result.movedPendingCandidates} pending candidate(s), and ${result.movedTasks} task(s).`,
+    );
+    if (result.droppedDocumentSources > 0) {
+      console.log(
+        `Dropped ${result.droppedDocumentSources} document source(s) (${result.droppedDocumentChunks} chunk(s)); the survivor reindexes them on next activation.`,
+      );
+    }
+    console.log(`Project settings: ${result.keptSurvivorSettings ? "survivor settings kept" : "absorbed settings moved"}.`);
+    console.log(`Merged ${result.absorbedProjectId} into ${result.survivorProjectId}.`);
+  } finally {
+    connection.close();
+  }
+}
+
 function runStatusCommand(parsed: ParsedArgs): void {
   const context = createCoreContext();
   const paths = resolveManagedPaths();
@@ -1082,6 +1128,8 @@ export async function main(
       runLessonCommand(parsed);
     } else if (parsed.command === "relink") {
       runRelinkCommand(parsed);
+    } else if (parsed.command === "merge") {
+      runMergeCommand(parsed);
     } else if (parsed.command === "export") {
       await runExportCommand(parsed);
     } else if (parsed.command === "restore") {
