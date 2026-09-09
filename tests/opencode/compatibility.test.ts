@@ -11,11 +11,11 @@ import {
   type SystemTransformHook,
 } from "./fixtures.js";
 
-test("the tested-version manifest admits only contract-tested OpenCode versions", () => {
+test("the manifest pins the minimum version and the contract-tested versions", () => {
   expect(OPENCODE_COMPATIBILITY_MANIFEST).toEqual({
     schemaVersion: 1,
     minimumVersion: "1.18.27",
-    testedVersions: ["1.18.27", "1.18.29"],
+    testedVersions: ["1.18.27", "1.18.29", "1.18.30"],
   });
   expect(checkOpenCodeCompatibility("1.18.27")).toEqual({
     status: "supported",
@@ -27,7 +27,22 @@ test("the tested-version manifest admits only contract-tested OpenCode versions"
   });
 });
 
-test("the compatibility gate rejects malformed, older, and untested versions", () => {
+test("every version at or above the minimum is supported, so updates never disable injection", () => {
+  expect(checkOpenCodeCompatibility("1.18.28")).toEqual({
+    status: "supported",
+    version: "1.18.28",
+  });
+  expect(checkOpenCodeCompatibility("1.18.31")).toEqual({
+    status: "supported",
+    version: "1.18.31",
+  });
+  expect(checkOpenCodeCompatibility("2.0.0")).toEqual({
+    status: "supported",
+    version: "2.0.0",
+  });
+});
+
+test("the compatibility gate rejects malformed and older versions", () => {
   expect(checkOpenCodeCompatibility("1.18")).toEqual({
     status: "unsupported",
     version: "1.18",
@@ -42,11 +57,6 @@ test("the compatibility gate rejects malformed, older, and untested versions", (
     status: "unsupported",
     version: "1.18.26",
     reason: "below-minimum-version",
-  });
-  expect(checkOpenCodeCompatibility("1.18.28")).toEqual({
-    status: "unsupported",
-    version: "1.18.28",
-    reason: "untested-version",
   });
 });
 

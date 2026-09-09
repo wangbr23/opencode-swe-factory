@@ -251,3 +251,13 @@ Append-only log of architecture decisions. One entry per decision, newest at the
 **Decision:** Detection is model-driven (no plugin-side pattern matching). Any explicitly stated lasting preference proposes a draft on first statement — the cross-session repetition-confidence idea is dropped for explicit signals; the approval card is the gate, and repetition confidence only ever applies to implicit repeated-success signals. Scope is model-proposed (global for interaction preferences, project for repo conventions) and editable on the card via a replacement candidate. Raw utterances are never persisted; utterance text may appear only inside the reviewed draft, which is deleted on reject/expiry.
 
 **Consequences:** No new infrastructure — the decision ratifies the existing flow as the required path. Detection quality lives in the protocol text, so acceptance scenarios (T97) pin the happy path and secret-block path; over-proposal is absorbed by the card, under-proposal by silence.
+
+## 2026-09-09 — Untested-but-newer OpenCode versions enable injection with a warning; the version allowlist no longer gates
+
+**Status:** Accepted (supersedes the strict tested-version gate of [2026-09-03](designs/2026-09-03-coding-memory-model-router.md))
+
+**Context:** `checkOpenCodeCompatibility` treated any version outside `testedVersions` as `unsupported`, which disabled context injection entirely. When OpenCode bumped 1.18.29 → 1.18.30, every new session silently lost lesson retrieval (visible only as a diagnostics warning) until the manifest was edited. This happened in practice: confirmed lessons (e.g. "Explain in simple terms by default") stopped being retrieved and the user had to discover the cause by hand.
+
+**Decision:** The compatibility gate now checks only `minimumVersion` and version resolvability. Versions at or above the minimum are `supported` with injection enabled; `testedVersions` is informational, driving only the init diagnostic's wording/severity (`info` when the version is in the list, warning when not). An unresolvable version probe stays `unsupported` with the new `unknown-version` reason — fail safe rather than guessing. Manifest reasons `untested-version` is removed.
+
+**Consequences:** OpenCode patch releases no longer silently disable lesson retrieval; the cost of an untested version is a visible warning instead of silent degradation, which matches the documented fail-open philosophy. A future breaking OpenCode release would surface as hook errors rather than a clean disable, so `testedVersions` should still be extended after real verification — but forgetting no longer costs the core value loop.

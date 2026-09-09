@@ -26,7 +26,7 @@ import type { ResolvedFeatureToggles } from "../types/feature-toggle-types.js";
 import type { OpenCodeSessionToggles } from "../types/opencode-tool-types.js";
 import type { PluginDependencies } from "../types/plugin-types.js";
 import type { EmbedLessonTextFn } from "../types/lesson-embedding-index-types.js";
-import { checkOpenCodeCompatibility } from "./compatibility.js";
+import { checkOpenCodeCompatibility, OPENCODE_COMPATIBILITY_MANIFEST } from "./compatibility.js";
 import {
   applyInjection,
   createInjectionState,
@@ -468,7 +468,13 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
               : {}),
           });
           if (result.status === "committed") {
-            return `Lesson ${args.decision}d successfully.`;
+            const outcomeText =
+              args.decision === "approve"
+                ? "approved"
+                : args.decision === "defer"
+                  ? "deferred"
+                  : "rejected";
+            return `Lesson ${outcomeText} successfully.`;
           }
           return `Lesson commit failed: ${result.error}`;
         },
@@ -634,7 +640,7 @@ export const server: Plugin = async (input, options) => {
       : {
           status: "unsupported" as const,
           version: "unknown",
-          reason: "untested-version" as const,
+          reason: "unknown-version" as const,
         };
 
     const projectResult = resolveProjectIdentity(connection, {
@@ -667,15 +673,19 @@ export const server: Plugin = async (input, options) => {
     // The init compatibility outcome is recorded so degraded installs are
     // always explainable via the CLI status/diagnostics view.
     try {
+      const testedVersions: readonly string[] = OPENCODE_COMPATIBILITY_MANIFEST.testedVersions;
+      const tested = compatibility.status === "supported" && testedVersions.includes(compatibility.version);
       await writeLocalDiagnostic(
         {
           component: "plugin-init",
           code: "compatibility",
-          severity: compatibility.status === "supported" ? "info" : "warning",
+          severity: compatibility.status === "supported" && tested ? "info" : "warning",
           summary:
-            compatibility.status === "supported"
-              ? `OpenCode ${compatibility.version}: context injection and routing enabled.`
-              : `OpenCode ${compatibility.version} (${compatibility.reason}): context injection and routing disabled; CLI and memory tools remain available.`,
+            compatibility.status !== "supported"
+              ? `OpenCode ${compatibility.version} (${compatibility.reason}): context injection and routing disabled; CLI and memory tools remain available.`
+              : tested
+                ? `OpenCode ${compatibility.version}: context injection and routing enabled.`
+                : `OpenCode ${compatibility.version} (untested): context injection and routing enabled; hook behavior may have changed, verify if injection misbehaves.`,
         },
         {
           filePath: join(paths.dataDirectory, "diagnostics.jsonl"),

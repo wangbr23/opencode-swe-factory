@@ -22,12 +22,9 @@ export function checkOpenCodeCompatibility(version: string): OpenCodeCompatibili
     return { status: "unsupported", version, reason: "below-minimum-version" };
   }
 
-  const testedVersions: readonly string[] = OPENCODE_COMPATIBILITY_MANIFEST.testedVersions;
-
-  if (!testedVersions.includes(version)) {
-    return { status: "unsupported", version, reason: "untested-version" };
-  }
-
+  // Versions at or above the minimum run with injection enabled: OpenCode
+  // patch releases must not silently disable lesson retrieval. The tested
+  // list is informational and only shapes the init diagnostic's severity.
   return { status: "supported", version };
 }
 
