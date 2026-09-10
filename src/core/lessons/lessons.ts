@@ -262,6 +262,34 @@ export function reviewLessonCandidate(
   })();
 }
 
+function toPendingCandidateSummary(row: CandidateRow, now: Date): PendingLessonCandidateSummary {
+  const stored = parseStoredCandidate(row.draft_json);
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    scope: row.scope,
+    draft: stored.draft,
+    requiresAcknowledgment: stored.secretScan.disposition === "acknowledgment-required",
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    expired: now.getTime() >= Date.parse(row.expires_at),
+  };
+}
+
+/**
+ * Reads a pending candidate as a parsed summary without applying any
+ * decision. Expired candidates are returned with `expired: true` so callers
+ * decide how to treat them.
+ */
+export function readPendingCandidate(
+  connection: SqliteConnection,
+  candidateId: string,
+  now?: Date,
+): PendingLessonCandidateSummary {
+  const row = getCandidateRow(connection, candidateId);
+  return toPendingCandidateSummary(row, now ?? new Date());
+}
+
 export function listPendingLessonCandidates(
   connection: SqliteConnection,
   input?: ListPendingCandidatesInput,
@@ -277,19 +305,9 @@ export function listPendingLessonCandidates(
 
   const results: PendingLessonCandidateSummary[] = [];
   for (const row of rows) {
-    const expired = now.getTime() >= Date.parse(row.expires_at);
-    if (expired && !includeExpired) continue;
-    const stored = parseStoredCandidate(row.draft_json);
-    results.push({
-      id: row.id,
-      projectId: row.project_id,
-      scope: row.scope,
-      draft: stored.draft,
-      requiresAcknowledgment: stored.secretScan.disposition === "acknowledgment-required",
-      createdAt: row.created_at,
-      expiresAt: row.expires_at,
-      expired,
-    });
+    const summary = toPendingCandidateSummary(row, now);
+    if (summary.expired && !includeExpired) continue;
+    results.push(summary);
   }
 
   return results;
