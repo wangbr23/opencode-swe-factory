@@ -323,7 +323,8 @@ test("propose lesson tool surfaces related overlaps from the semantic pass", () 
         { candidateId: firstCandidateId, decision: "approve" },
         ctx,
       );
-      await indexConfirmedLessonEmbeddings(connection, { embed: embedStub });
+      // The plugin's own scheduled indexer run (post-commit) stores the vector.
+      expect(await waitFor(() => storedVectorCount(connection) === 1)).toBe(true);
 
       const second = await getTool("swe_factory_propose_lesson").execute(
         {
@@ -342,6 +343,127 @@ test("propose lesson tool surfaces related overlaps from the semantic pass", () 
     },
   ));
 
+test("committing a lesson schedules a background embedding index run", () =>
+  withPlugin(
+    async ({ getTool, connection }) => {
+      const ctx = createToolContext("s1");
+      const proposeResult = await getTool("swe_factory_propose_lesson").execute(
+        {
+          title: "Index me",
+          body: "database migration tests run before every deploy",
+          rationale: "Indexing test",
+          scope: "global",
+        },
+        ctx,
+      );
+      const candidateId = textOf(proposeResult).match(/Candidate ID: (.+)/)![1];
+      await getTool("swe_factory_commit_lesson").execute(
+        { candidateId, decision: "approve" },
+        ctx,
+      );
+
+      const indexed = await waitFor(() => storedVectorCount(connection) > 0);
+      expect(indexed).toBe(true);
+      const vectorRow = connection.database
+        .query<{ lesson_id: string; lesson_version: number; model: string; revision: string }, []>(
+          "SELECT lesson_id, lesson_version, model, revision FROM lesson_version_embeddings LIMIT 1",
+        )
+        .get() ?? null;
+      expect(vectorRow).not.toBeNull();
+      expect(vectorRow!.lesson_version).toBe(1);
+    },
+    {
+      createLessonEmbedder: async () => embedStub,
+    },
+  ));
+
+test("resolving an overlap schedules a reindex that drops the superseded vector", () =>
+  withPlugin(
+    async ({ getTool, connection }) => {
+      const ctx = createToolContext("s1");
+      const original = await getTool("swe_factory_propose_lesson").execute(
+        {
+          title: "Old convention",
+          body: "database migration tests run before every deploy",
+          rationale: "Original",
+          scope: "global",
+        },
+        ctx,
+      );
+      const originalCandidateId = textOf(original).match(/Candidate ID: (.+)/)![1];
+      await getTool("swe_factory_commit_lesson").execute(
+        { candidateId: originalCandidateId, decision: "approve" },
+        ctx,
+      );
+      expect(await waitFor(() => storedVectorCount(connection) === 1)).toBe(true);
+      const lessonId = connection.database
+        .query<{ id: string }, []>("SELECT id FROM lessons LIMIT 1")
+        .get()!.id;
+
+      const correction = await getTool("swe_factory_propose_lesson").execute(
+        {
+          title: "New convention",
+          body: "database migration tests run before every single deploy",
+          rationale: "Corrected",
+          scope: "global",
+        },
+        ctx,
+      );
+      const card = textOf(correction);
+      const candidateId = card.match(/Candidate ID: (.+)/)![1];
+      const resolveResult = await getTool("swe_factory_resolve_overlap").execute(
+        { candidateId, overlappingLessonId: lessonId },
+        ctx,
+      );
+      expect(textOf(resolveResult)).toContain("Overlap resolved");
+
+      const reindexed = await waitFor(() => {
+        const active = connection.database
+          .query<{ version: number }, [string]>(
+            "SELECT lesson_version AS version FROM lesson_version_embeddings WHERE lesson_id = ?",
+          )
+          .get(lessonId);
+        return active?.version === 2;
+      });
+      expect(reindexed).toBe(true);
+    },
+    {
+      createLessonEmbedder: async () => embedStub,
+    },
+  ));
+
+test("a throwing embedder never breaks the commit outcome", () =>
+  withPlugin(
+    async ({ getTool, connection }) => {
+      const ctx = createToolContext("s1");
+      const proposeResult = await getTool("swe_factory_propose_lesson").execute(
+        {
+          title: "Survives failure",
+          body: "database migration tests run before every deploy",
+          rationale: "Failure test",
+          scope: "global",
+        },
+        ctx,
+      );
+      const candidateId = textOf(proposeResult).match(/Candidate ID: (.+)/)![1];
+      const commitResult = await getTool("swe_factory_commit_lesson").execute(
+        { candidateId, decision: "approve" },
+        ctx,
+      );
+      expect(textOf(commitResult)).toContain("approved successfully");
+      expect(await waitFor(() => storedVectorCount(connection) === 0 && true)).toBe(true);
+      const lessons = connection.database
+        .query<{ count: number }, []>("SELECT count(*) AS count FROM lessons")
+        .get();
+      expect(lessons!.count).toBe(1);
+    },
+    {
+      createLessonEmbedder: async () => async () => {
+        throw new Error("Embedding model unavailable.");
+      },
+    },
+  ));
+
 const embedStub: EmbedLessonTextFn = (text) => {
   const lower = text.toLowerCase();
   const vector = new Float32Array(EMBEDDING_VECTOR_DIMENSIONS);
@@ -352,6 +474,24 @@ const embedStub: EmbedLessonTextFn = (text) => {
   }
   return Promise.resolve(vector);
 };
+
+async function waitFor(
+  predicate: () => boolean,
+  timeoutMs = 2000,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return true;
+    await Bun.sleep(10);
+  }
+  return predicate();
+}
+
+function storedVectorCount(connection: { database: { query: (sql: string) => { get: () => { count: number } | null } } }): number {
+  return connection.database
+    .query("SELECT count(*) AS count FROM lesson_version_embeddings")
+    .get()?.count ?? 0;
+}
 
 // --- Tool: commit lesson ---
 

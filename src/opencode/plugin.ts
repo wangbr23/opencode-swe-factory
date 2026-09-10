@@ -10,6 +10,7 @@ import {
   releaseSchemaMigrations,
 } from "../core/index.js";
 import { retrieveConfirmedLessonsHybrid } from "../core/lessons/lesson-hybrid-retrieval.js";
+import { createLessonEmbeddingIndexer, type LessonEmbeddingIndexer } from "../core/lessons/lesson-embedding-index.js";
 import { createLocalLessonEmbedder } from "../core/lessons/lesson-embedder.js";
 import { resolveEmbeddingArtifactDirectory } from "../core/documents/embedding-artifacts.js";
 import { recordLessonRetrievalHits } from "../core/lessons/lesson-usage-tracking.js";
@@ -161,6 +162,22 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
       });
   };
 
+  let lessonIndexer: LessonEmbeddingIndexer | undefined;
+
+  // Schedules a background embedding-index run once the embedder is ready, so
+  // stored lesson vectors accumulate outside tests and semantic channels see
+  // data in normal installs. Fire-and-forget: commit/resolution/message flow
+  // never waits on embedding, and schedule() reports failures as an outcome
+  // instead of throwing.
+  const scheduleEmbeddingIndex = (): void => {
+    ensureEmbedderStartup();
+    if (embedder === undefined) return;
+    if (lessonIndexer === undefined) {
+      lessonIndexer = createLessonEmbeddingIndexer(connection, { embed: embedder });
+    }
+    void lessonIndexer.schedule();
+  };
+
   const hooks: Hooks = {
     async dispose() {
       connection.close();
@@ -192,6 +209,11 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
         );
 
         if (injectionEnabled) {
+          // Same guards as injection: private mode and a disabled retrieval
+          // toggle must not start the embedder (existing invariant).
+          if (toggles.retrieval && !toggles.privateMode) {
+            scheduleEmbeddingIndex();
+          }
           await prepareInjection(
             injectionState,
             toggles,
@@ -476,6 +498,9 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
               : {}),
           });
           if (result.status === "committed") {
+            if (args.decision === "approve") {
+              scheduleEmbeddingIndex();
+            }
             const outcomeText =
               args.decision === "approve"
                 ? "approved"
@@ -514,6 +539,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
               : {}),
           });
           if (result.status === "resolved") {
+            scheduleEmbeddingIndex();
             return `Overlap resolved: lesson ${result.supersession.lessonId} version ${result.supersession.supersededVersion} superseded by version ${result.supersession.version}; candidate rejected.`;
           }
           return `Overlap resolution failed: ${result.error}`;

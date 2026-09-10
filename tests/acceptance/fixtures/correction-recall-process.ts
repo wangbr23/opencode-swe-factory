@@ -1,6 +1,5 @@
 import {
   createDefaultConfig,
-  indexConfirmedLessonEmbeddings,
   migrateSqliteSchema,
   openSqliteConnection,
   releaseSchemaMigrations,
@@ -81,9 +80,20 @@ try {
       throw new Error(commitResult);
     }
 
-    const indexing = await indexConfirmedLessonEmbeddings(connection, { embed });
-    if (indexing.embeddedCount !== 1 || indexing.failures.length !== 0) {
-      throw new Error(`Approved lesson was not indexed: ${JSON.stringify(indexing)}`);
+    // The plugin schedules its own background index run after the commit;
+    // wait for it instead of racing it with a manual indexing call.
+    const vectorCount = (): number =>
+      connection.database.query<{ count: number }, []>(
+        "SELECT count(*) AS count FROM lesson_version_embeddings",
+      ).get()?.count ?? 0;
+    const indexingDeadline = Date.now() + 5000;
+    while (vectorCount() < 1 && Date.now() < indexingDeadline) {
+      await Bun.sleep(10);
+    }
+    if (vectorCount() !== 1) {
+      throw new Error(
+        `Approved lesson was not indexed by the plugin: ${vectorCount()} vector row(s).`,
+      );
     }
 
     console.log(JSON.stringify({ status: "approved" }));

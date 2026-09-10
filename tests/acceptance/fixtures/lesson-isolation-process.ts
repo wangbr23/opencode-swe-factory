@@ -129,9 +129,20 @@ try {
     await approve("project", CONFLICT_LESSONS[1]);
     await approve("global", GLOBAL_LESSON);
 
-    const indexing = await indexConfirmedLessonEmbeddings(connection, { embed });
-    if (indexing.embeddedCount !== 4 || indexing.failures.length !== 0) {
-      throw new Error(`Approved lessons were not indexed: ${JSON.stringify(indexing)}`);
+    // The plugin schedules its own background index run after each commit;
+    // wait for it instead of racing it with a manual indexing call.
+    const vectorCount = (): number =>
+      connection.database.query<{ count: number }, []>(
+        "SELECT count(*) AS count FROM lesson_version_embeddings",
+      ).get()?.count ?? 0;
+    const indexingDeadline = Date.now() + 5000;
+    while (vectorCount() < 4 && Date.now() < indexingDeadline) {
+      await Bun.sleep(10);
+    }
+    if (vectorCount() !== 4) {
+      throw new Error(
+        `Approved lessons were not indexed by the plugin: ${vectorCount()} vector row(s).`,
+      );
     }
 
     console.log(JSON.stringify({
