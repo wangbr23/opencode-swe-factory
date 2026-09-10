@@ -1,4 +1,16 @@
-import type { ToolOutcomeCategory } from "../../types/tool-outcome-signal-types.js";
+import type { ToolFailureKind, ToolOutcomeCategory } from "../../types/tool-outcome-signal-types.js";
+
+/**
+ * Runtime vocabulary of the host-classified failure kinds. The type of the
+ * same name in tool-outcome-signal-types.ts is its compile-time counterpart.
+ */
+export const TOOL_FAILURE_KINDS: ReadonlyArray<ToolFailureKind> = Object.freeze([
+  "command",
+  "local-tool",
+  "provider",
+  "authentication",
+  "cancellation",
+]);
 
 /**
  * Command-line prefixes that map a transient command to its outcome category.

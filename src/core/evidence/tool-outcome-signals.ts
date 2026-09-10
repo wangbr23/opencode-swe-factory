@@ -22,7 +22,7 @@ export type {
   ToolOutcomeCategory,
   ToolOutcomeSignalMetadata,
 } from "../../types/tool-outcome-signal-types.js";
-export { TOOL_COMMAND_CATEGORY_PREFIXES } from "./tool-outcome-signal-constants.js";
+export { TOOL_COMMAND_CATEGORY_PREFIXES, TOOL_FAILURE_KINDS } from "./tool-outcome-signal-constants.js";
 
 /**
  * Resolve the outcome category for a completed tool. The transient command

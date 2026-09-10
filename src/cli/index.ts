@@ -33,6 +33,7 @@ import {
   openSqliteConnection,
   readLocalDiagnostics,
   recordExplicitFeedback,
+  reclassifyOutcomeFailure,
   releaseSchemaMigrations,
   resolveEmbeddingArtifactDirectory,
   resolveManagedPaths,
@@ -43,6 +44,7 @@ import {
   mergeProjects,
   restoreDatabaseFromJsonl,
   supersedeLesson,
+  TOOL_FAILURE_KINDS,
   verifyEmbeddingArtifacts,
   type EmbeddingArtifactState,
   type ExplicitFeedbackKind,
@@ -85,6 +87,8 @@ Commands:
   task <id> --activity ...  Correct a task's active profile (new version)
   feedback <task-id>        Record explicit feedback for a task
   evidence <task-id>        Inspect a task's recorded evidence signals
+  reclassify <task> <signal>
+                            Reclassify a recorded outcome failure
   relink <project-id>       Change a project's path or remote association
   merge <keep-id> <absorb-id>
                             Merge a duplicate project into the survivor
@@ -111,6 +115,8 @@ Options:
   --risk <value>             Corrected task risk (low, medium, high)
   --stack <values>           Corrected stack as comma-separated values, or "none" to clear
   --kind <value>             Explicit feedback kind (acceptance, correction, rework)
+  --failure-kind <value>     Corrected failure kind (command, local-tool, provider, authentication, cancellation)
+  --not-model-caused         Withdraw the failure's attribution to the executing model
   --acknowledge-secret-risk  Acknowledge low-confidence secret findings during approval
   --help                     Show this help`;
 }
@@ -129,6 +135,8 @@ type ParsedArgs = Readonly<{
   body: string | undefined;
   rationale: string | undefined;
   feedbackKind: string | undefined;
+  failureKind: string | undefined;
+  notModelCaused: boolean;
   activity: string | undefined;
   domain: string | undefined;
   complexity: string | undefined;
@@ -141,10 +149,11 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
   const values = new Map<string, string>();
   const positional: string[] = [];
   let acknowledgeSecretRisk = false;
+  let notModelCaused = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]!;
-    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--path" || arg === "--remote" || arg === "--title" || arg === "--body" || arg === "--rationale" || arg === "--kind" || arg === "--activity" || arg === "--domain" || arg === "--complexity" || arg === "--risk" || arg === "--stack") {
+    if (arg === "--database" || arg === "--backup-dir" || arg === "--config" || arg === "--project" || arg === "--path" || arg === "--remote" || arg === "--title" || arg === "--body" || arg === "--rationale" || arg === "--kind" || arg === "--failure-kind" || arg === "--activity" || arg === "--domain" || arg === "--complexity" || arg === "--risk" || arg === "--stack") {
       const value = args[index + 1];
       if (value === undefined) {
         throw new Error(`Option ${arg} requires a value.`);
@@ -157,6 +166,10 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
       acknowledgeSecretRisk = true;
       continue;
     }
+    if (arg === "--not-model-caused") {
+      notModelCaused = true;
+      continue;
+    }
     if (arg.startsWith("--")) {
       throw new Error(`Unknown option ${arg}.`);
     }
@@ -165,7 +178,7 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
 
   const command = positional[0];
   const multiWordCommands = new Set(["search", "config"]);
-  const twoArgumentCommands = new Set(["merge"]);
+  const twoArgumentCommands = new Set(["merge", "reclassify"]);
   const commandArg = multiWordCommands.has(command ?? "")
     ? positional.slice(1).join(" ") || undefined
     : positional[1];
@@ -192,6 +205,8 @@ function parseArgs(args: ReadonlyArray<string>): ParsedArgs {
     body: values.get("--body"),
     rationale: values.get("--rationale"),
     feedbackKind: values.get("--kind"),
+    failureKind: values.get("--failure-kind"),
+    notModelCaused,
     activity: values.get("--activity"),
     domain: values.get("--domain"),
     complexity: values.get("--complexity"),
@@ -673,6 +688,50 @@ function runEvidenceCommand(parsed: ParsedArgs): void {
   }
 }
 
+function runReclassifyCommand(parsed: ParsedArgs): void {
+  const taskId = parsed.commandArg;
+  const signalId = parsed.secondCommandArg;
+  if (!taskId || !signalId || (parsed.failureKind === undefined && !parsed.notModelCaused)) {
+    throw new Error(
+      "Usage: reclassify <task-id> <signal-id> --failure-kind <command|local-tool|provider|authentication|cancellation> [--not-model-caused]",
+    );
+  }
+  const failureKind =
+    parsed.failureKind === undefined
+      ? undefined
+      : parseTaxonomyValue(parsed.failureKind, TOOL_FAILURE_KINDS, "failure-kind");
+
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const result = reclassifyOutcomeFailure(connection, {
+      taskId,
+      signalId,
+      ...(failureKind !== undefined ? { failureKind } : {}),
+      ...(parsed.notModelCaused ? { notModelCaused: true } : {}),
+    });
+    console.log(
+      `\nReclassified failure signal ${result.supersededSignalId} for task ${result.taskId}.`,
+    );
+    console.log(`  Signal:       ${result.signalId}`);
+    if (result.failureKind !== undefined) {
+      const previous =
+        result.previousFailureKind !== undefined
+          ? ` (was ${result.previousFailureKind})`
+          : " (none recorded)";
+      console.log(`  Failure kind: ${result.failureKind}${previous}`);
+    }
+    if (result.attribution === "withdrawn") {
+      console.log("  Attribution:  model attribution withdrawn");
+    }
+    if (result.attribution === "restored") {
+      console.log("  Attribution:  model attribution restored");
+    }
+  } finally {
+    connection.close();
+  }
+}
+
 function runRelinkCommand(parsed: ParsedArgs): void {
   const projectId = parsed.commandArg;
   if (!projectId) {
@@ -1122,6 +1181,8 @@ export async function main(
       runFeedbackCommand(parsed);
     } else if (parsed.command === "evidence") {
       runEvidenceCommand(parsed);
+    } else if (parsed.command === "reclassify") {
+      runReclassifyCommand(parsed);
     } else if (parsed.command === "search") {
       runSearchCommand(parsed);
     } else if (parsed.command === "lesson") {

@@ -95,7 +95,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T87` Implement the end-of-session deferred-candidate review flow — agent, complexity: complex, depends-on: T39, T40, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T88` Suppress unresolved lesson conflicts during retrieval — agent, complexity: complex, depends-on: T35, T45, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [ ] `T89` Implement the approved post-V1 phase-transition retrieval triggers — agent, complexity: complex, depends-on: T15, T48, T93, design: docs/designs/2026-09-05-governed-memory-router-v1.md
-- [ ] `T90` Add the CLI outcome-failure reclassification command — agent, complexity: complex, depends-on: T27, T58, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T90` Add the CLI outcome-failure reclassification command — agent, complexity: complex, depends-on: T27, T58, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T91` Add the CLI diagnostics and compatibility-status command — agent, complexity: simple, depends-on: T3, T4, T16, T68, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T92` Add the evidence-driven model-recommendation acceptance scenario — agent, complexity: complex, depends-on: T21, T63, T71, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [ ] `T93` Review correction-recall and model-recommendation evidence before expanding scope — manual, depends-on: T25, T92, design: docs/designs/2026-09-05-governed-memory-router-v1.md

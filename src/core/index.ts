@@ -46,6 +46,7 @@ export * from "./db/sqlite.js";
 export * from "./tasks/task-persistence.js";
 export * from "./tasks/task-profile.js";
 export * from "./tasks/task-taxonomy.js";
+export * from "./evidence/outcome-reclassification.js";
 export * from "./evidence/tool-outcome-signals.js";
 
 export type CoreContext = Readonly<{
