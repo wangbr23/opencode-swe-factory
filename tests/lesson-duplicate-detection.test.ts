@@ -3,10 +3,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { EMBEDDING_VECTOR_DIMENSIONS } from "../src/types/embedding-types.js";
 import {
   DUPLICATE_BODY_THRESHOLD,
   MINIMUM_OVERLAP_THRESHOLD,
+  RELATED_SEMANTIC_SIMILARITY_CUTOFF,
   detectLessonDuplicatesAndConflicts,
+  indexConfirmedLessonEmbeddings,
   migrateSqliteSchema,
   openSqliteConnection,
   releaseSchemaMigrations,
@@ -17,12 +20,12 @@ import {
 
 const NOW = "2026-09-05T00:00:00.000Z";
 
-function withDatabase(run: (connection: SqliteConnection) => void): void {
+async function withDatabase(run: (connection: SqliteConnection) => void | Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), "opencode-swe-factory-dup-detection-"));
   const connection = openSqliteConnection(join(directory, "memory.sqlite"));
   migrateSqliteSchema(connection, releaseSchemaMigrations);
   try {
-    run(connection);
+    await run(connection);
   } finally {
     connection.close();
     rmSync(directory, { recursive: true, force: true });
@@ -78,8 +81,8 @@ function makeDraft(title: string, body: string): LessonCandidateDraft {
   };
 }
 
-test("classifies a near-duplicate when body terms overlap substantially", () => {
-  withDatabase((connection) => {
+test("classifies a near-duplicate when body terms overlap substantially", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "existing-lesson",
@@ -89,7 +92,7 @@ test("classifies a near-duplicate when body terms overlap substantially", () => 
       body: "Always run database migration tests before deploying changes to production",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Run migration tests",
         "Run database migration tests before deploying any changes to production",
@@ -106,8 +109,8 @@ test("classifies a near-duplicate when body terms overlap substantially", () => 
   });
 });
 
-test("classifies related lessons with different body content as potential conflicts", () => {
-  withDatabase((connection) => {
+test("classifies related lessons with different body content as potential conflicts", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "existing-lesson",
@@ -117,7 +120,7 @@ test("classifies related lessons with different body content as potential confli
       body: "Always run database migration tests before deploying to production",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Database testing policy",
         "Skip database migration tests in development environments for faster iteration",
@@ -134,8 +137,8 @@ test("classifies related lessons with different body content as potential confli
   });
 });
 
-test("returns empty when candidate has no lexical overlap with existing lessons", () => {
-  withDatabase((connection) => {
+test("returns empty when candidate has no lexical overlap with existing lessons", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "unrelated-lesson",
@@ -145,7 +148,7 @@ test("returns empty when candidate has no lexical overlap with existing lessons"
       body: "Use the rollback fixture to verify database reversibility",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Code review checklist",
         "Check for memory leaks and race conditions during code reviews",
@@ -157,8 +160,8 @@ test("returns empty when candidate has no lexical overlap with existing lessons"
   });
 });
 
-test("excludes specified lesson IDs from detection results", () => {
-  withDatabase((connection) => {
+test("excludes specified lesson IDs from detection results", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "keep-this",
@@ -175,7 +178,7 @@ test("excludes specified lesson IDs from detection results", () => {
       body: "Always run database migration tests before deploying changes",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Run migration tests",
         "Always run database migration tests before deploying changes",
@@ -188,8 +191,8 @@ test("excludes specified lesson IDs from detection results", () => {
   });
 });
 
-test("filters matches below the minimum overlap threshold", () => {
-  withDatabase((connection) => {
+test("filters matches below the minimum overlap threshold", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "weak-match",
@@ -199,7 +202,7 @@ test("filters matches below the minimum overlap threshold", () => {
       body: "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Deployment checklist",
         "alpha xray yankee zulu one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty",
@@ -211,8 +214,8 @@ test("filters matches below the minimum overlap threshold", () => {
   });
 });
 
-test("orders matches by body overlap descending with deterministic tiebreaker", () => {
-  withDatabase((connection) => {
+test("orders matches by body overlap descending with deterministic tiebreaker", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "low-overlap",
@@ -229,7 +232,7 @@ test("orders matches by body overlap descending with deterministic tiebreaker", 
       body: "Always run database migration tests before deploying changes to production environments",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Run migration tests",
         "Run database migration tests before deploying any changes to production environments",
@@ -243,8 +246,8 @@ test("orders matches by body overlap descending with deterministic tiebreaker", 
   });
 });
 
-test("respects project scope isolation from underlying retrieval", () => {
-  withDatabase((connection) => {
+test("respects project scope isolation from underlying retrieval", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertProject(connection, "project-b");
     insertLesson(connection, {
@@ -255,7 +258,7 @@ test("respects project scope isolation from underlying retrieval", () => {
       body: "Run database migration tests before deploying changes",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Run migration tests",
         "Run database migration tests before deploying changes",
@@ -267,8 +270,8 @@ test("respects project scope isolation from underlying retrieval", () => {
   });
 });
 
-test("detects duplicates across global and project scopes", () => {
-  withDatabase((connection) => {
+test("detects duplicates across global and project scopes", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "global-lesson",
@@ -278,7 +281,7 @@ test("detects duplicates across global and project scopes", () => {
       body: "Run database migration tests before deploying changes to production",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Run migration tests",
         "Run database migration tests before deploying any changes to production",
@@ -293,8 +296,8 @@ test("detects duplicates across global and project scopes", () => {
   });
 });
 
-test("returns empty for punctuation-only candidate content", () => {
-  withDatabase((connection) => {
+test("returns empty for punctuation-only candidate content", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "some-lesson",
@@ -304,7 +307,7 @@ test("returns empty for punctuation-only candidate content", () => {
       body: "Run database migration tests.",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft("!?---", "...:::"),
       projectId: "project-a",
     });
@@ -313,8 +316,8 @@ test("returns empty for punctuation-only candidate content", () => {
   });
 });
 
-test("classifies an exact content duplicate with overlap of 1", () => {
-  withDatabase((connection) => {
+test("classifies an exact content duplicate with overlap of 1", async () => {
+  withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "original",
@@ -324,7 +327,7 @@ test("classifies an exact content duplicate with overlap of 1", () => {
       body: "Always run database migration tests before deploying changes",
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Run migration tests",
         "Always run database migration tests before deploying changes",
@@ -340,8 +343,8 @@ test("classifies an exact content duplicate with overlap of 1", () => {
   });
 });
 
-test("skips lessons with no active version", () => {
-  withDatabase((connection) => {
+test("skips lessons with no active version", async () => {
+  await withDatabase(async (connection) => {
     insertProject(connection, "project-a");
     insertLesson(connection, {
       id: "inactive",
@@ -352,12 +355,147 @@ test("skips lessons with no active version", () => {
       activeVersion: null,
     });
 
-    const result = detectLessonDuplicatesAndConflicts(connection, {
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
       draft: makeDraft(
         "Run migration tests",
         "Run database migration tests before deploying changes",
       ),
       projectId: "project-a",
+    });
+
+    expect(result.matches).toEqual([]);
+  });
+});
+
+// --- semantic pass ---
+
+/**
+ * Deterministic stub embedder with the pinned vector dimensions: database/
+ * migration/upgrade texts live on axis 0, code-review texts on axis 1,
+ * everything else on axis 2. Same-axis texts have similarity 1.
+ */
+function embedAxis(text: string): Promise<Float32Array> {
+  const lower = text.toLowerCase();
+  const vector = new Float32Array(EMBEDDING_VECTOR_DIMENSIONS);
+  if (lower.includes("migration") || lower.includes("database") || lower.includes("upgrade")) {
+    vector[0] = 1;
+  } else if (lower.includes("code") || lower.includes("review")) {
+    vector[1] = 1;
+  } else {
+    vector[2] = 1;
+  }
+  return Promise.resolve(vector);
+}
+
+test("semantic-only hit surfaces as related with zero lexical overlap", async () => {
+  await withDatabase(async (connection) => {
+    insertProject(connection, "project-a");
+    insertLesson(connection, {
+      id: "phrased-differently",
+      scope: "project",
+      projectId: "project-a",
+      title: "Schema upgrade verification",
+      body: "database migration testing before production deployment",
+    });
+    await indexConfirmedLessonEmbeddings(connection, { embed: embedAxis, now: new Date(NOW) });
+
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
+      draft: makeDraft(
+        "Db checks",
+        "db upgrade verification ahead of live rollout",
+      ),
+      projectId: "project-a",
+      embed: embedAxis,
+    });
+
+    expect(result.matches).toHaveLength(1);
+    const match = result.matches[0]!;
+    expect(match.lessonId).toBe("phrased-differently");
+    expect(match.relation).toBe("related");
+    expect(match.titleOverlap).toBe(0);
+    expect(match.bodyOverlap).toBe(0);
+    expect(match.semanticSimilarity).toBeGreaterThanOrEqual(RELATED_SEMANTIC_SIMILARITY_CUTOFF);
+  });
+});
+
+test("embedder failure degrades to lexical-only detection", async () => {
+  await withDatabase(async (connection) => {
+    insertProject(connection, "project-a");
+    insertLesson(connection, {
+      id: "lexical-match",
+      scope: "project",
+      projectId: "project-a",
+      title: "Run migration tests",
+      body: "Always run database migration tests before deploying changes",
+    });
+    await indexConfirmedLessonEmbeddings(connection, { embed: embedAxis, now: new Date(NOW) });
+
+    const failingEmbed = () => Promise.reject(new Error("Embedder unavailable."));
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
+      draft: makeDraft(
+        "Run migration tests",
+        "Always run database migration tests before deploying changes",
+      ),
+      projectId: "project-a",
+      embed: failingEmbed,
+    });
+
+    expect(result.matches).toHaveLength(1);
+    const match = result.matches[0]!;
+    expect(match.relation).toBe("duplicate");
+    expect(match.semanticSimilarity).toBeUndefined();
+  });
+});
+
+test("dedupe keeps lexical metadata when a lesson matches both passes", async () => {
+  await withDatabase(async (connection) => {
+    insertProject(connection, "project-a");
+    insertLesson(connection, {
+      id: "both-passes",
+      scope: "project",
+      projectId: "project-a",
+      title: "Run migration tests",
+      body: "Always run database migration tests before deploying changes",
+    });
+    await indexConfirmedLessonEmbeddings(connection, { embed: embedAxis, now: new Date(NOW) });
+
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
+      draft: makeDraft(
+        "Run migration tests",
+        "Always run database migration tests before deploying changes",
+      ),
+      projectId: "project-a",
+      embed: embedAxis,
+    });
+
+    expect(result.matches).toHaveLength(1);
+    const match = result.matches[0]!;
+    expect(match.relation).toBe("duplicate");
+    expect(match.bodyOverlap).toBe(1);
+    expect(match.lexicalRank).toBeGreaterThan(0);
+    expect(match.semanticSimilarity).toBeUndefined();
+  });
+});
+
+test("semantic hits below the related cutoff are not surfaced", async () => {
+  await withDatabase(async (connection) => {
+    insertProject(connection, "project-a");
+    insertLesson(connection, {
+      id: "weak-semantic",
+      scope: "project",
+      projectId: "project-a",
+      title: "Code review checklist",
+      body: "Check for memory leaks during code reviews",
+    });
+    await indexConfirmedLessonEmbeddings(connection, { embed: embedAxis, now: new Date(NOW) });
+
+    const result = await detectLessonDuplicatesAndConflicts(connection, {
+      draft: makeDraft(
+        "Run migration tests",
+        "Always run database migration tests before deploying changes",
+      ),
+      projectId: "project-a",
+      embed: embedAxis,
     });
 
     expect(result.matches).toEqual([]);

@@ -1,6 +1,7 @@
 import { proposeLessonCandidate, reviewLessonCandidate } from "../core/lessons/lessons.js";
 import { resolvePendingLessonOverlap } from "../core/lessons/lesson-overlap-resolution.js";
 import { detectLessonDuplicatesAndConflicts } from "../core/lessons/lesson-duplicate-detection.js";
+import type { EmbedLessonTextFn } from "../types/lesson-embedding-index-types.js";
 import type { SqliteConnection } from "../core/db/sqlite.js";
 import type {
   CommitLessonToolInput,
@@ -26,6 +27,7 @@ export async function handleProposeLesson(
   projectId: string | null,
   scanText: ScanTextFn,
   input: ProposeLessonToolInput,
+  embed?: EmbedLessonTextFn,
 ): Promise<ProposeLessonToolResult> {
   try {
     const textToScan = `${input.title}\n${input.body}`;
@@ -54,9 +56,10 @@ export async function handleProposeLesson(
     });
 
     const detectionProjectId = projectId ?? "__no_project__";
-    const { matches } = detectLessonDuplicatesAndConflicts(connection, {
+    const { matches } = await detectLessonDuplicatesAndConflicts(connection, {
       draft: candidate.draft,
       projectId: detectionProjectId,
+      ...(embed !== undefined ? { embed } : {}),
     });
 
     return { status: "proposed", candidate, overlaps: matches };

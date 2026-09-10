@@ -148,11 +148,23 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
   let embedder: EmbedLessonTextFn | undefined;
   let embedderStartup: Promise<void> | undefined;
 
+  // Kicks off (once) the adapter-owned lazy embedder startup without awaiting
+  // it: model load must never delay a message or a proposal, so early callers
+  // degrade to lexical-only until startup completes.
+  const ensureEmbedderStartup = (): void => {
+    if (deps.createLessonEmbedder === undefined || embedderStartup !== undefined) return;
+    embedderStartup = Promise.resolve()
+      .then(deps.createLessonEmbedder)
+      .then((created) => { embedder = created; })
+      .catch(() => {
+        // Keep lexical retrieval available when local setup is absent or broken.
+      });
+  };
+
   const hooks: Hooks = {
     async dispose() {
       connection.close();
     },
-
     "chat.message": async (input, output) => {
       try {
         const sessionId = input.sessionID;
@@ -185,14 +197,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
             toggles,
             buildInjectionInput(sessionId, input.messageID, messageText, projectId),
             async (query, retrievalProjectId) => {
-              if (deps.createLessonEmbedder !== undefined && embedderStartup === undefined) {
-                embedderStartup = Promise.resolve()
-                  .then(deps.createLessonEmbedder)
-                  .then((created) => { embedder = created; })
-                  .catch(() => {
-                    // Keep lexical retrieval available when local setup is absent or broken.
-                  });
-              }
+              ensureEmbedderStartup();
               const hybrid = await retrieveConfirmedLessonsHybrid(connection, {
                 query,
                 projectId: retrievalProjectId,
@@ -420,6 +425,8 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
             return "Lesson proposal skipped: private mode is active.";
           }
 
+          ensureEmbedderStartup();
+
           const result = await handleProposeLesson(
             connection,
             projectId,
@@ -436,6 +443,7 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
                 ? { provenance: args.provenance }
                 : {}),
             },
+            embedder,
           );
 
           return formatApprovalCard(result);

@@ -261,7 +261,7 @@ function runBackupStatusCommand(parsed: ParsedArgs): void {
 }
 
 function formatOverlapMatch(match: LessonOverlapMatch): string {
-  const tag = match.relation === "duplicate" ? "DUPLICATE" : "CONFLICT";
+  const tag = match.relation === "duplicate" ? "DUPLICATE" : match.relation === "related" ? "RELATED" : "CONFLICT";
   const bodyPct = `${Math.round(match.bodyOverlap * 100)}%`;
   return `    ${match.lessonId} (${match.scope}, ${tag}, body overlap: ${bodyPct})\n      "${match.title}"\n      ${match.body}`;
 }
@@ -312,10 +312,10 @@ function runReviewListCommand(parsed: ParsedArgs): void {
   }
 }
 
-function runReviewCandidateCommand(
+async function runReviewCandidateCommand(
   parsed: ParsedArgs,
   readLine: (question: string) => string | null,
-): void {
+): Promise<void> {
   const candidateId = parsed.commandArg!;
   const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
   try {
@@ -337,7 +337,7 @@ function runReviewCandidateCommand(
     console.log(`  Secrets:   ${candidate.requiresAcknowledgment ? "acknowledgment-required" : "clear"}`);
 
     const detectionProjectId = candidate.projectId ?? GLOBAL_DETECTION_PROJECT_ID;
-    const detection = detectLessonDuplicatesAndConflicts(connection, {
+    const detection = await detectLessonDuplicatesAndConflicts(connection, {
       draft: candidate.draft,
       projectId: detectionProjectId,
     });
@@ -1165,7 +1165,7 @@ export async function main(
       runBackupStatusCommand(parsed);
     } else if (parsed.command === "review") {
       if (parsed.commandArg) {
-        runReviewCandidateCommand(parsed, options?.readLine ?? prompt);
+        await runReviewCandidateCommand(parsed, options?.readLine ?? prompt);
       } else {
         runReviewListCommand(parsed);
       }

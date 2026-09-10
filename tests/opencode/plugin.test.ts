@@ -7,6 +7,7 @@ import {
   type SecretScanResult,
 } from "../../src/core/index.js";
 import { EMBEDDING_VECTOR_DIMENSIONS } from "../../src/types/embedding-types.js";
+import type { EmbedLessonTextFn } from "../../src/types/lesson-embedding-index-types.js";
 import {
   chatInput,
   createToolContext,
@@ -303,6 +304,54 @@ test("propose lesson tool respects private mode", () =>
     );
     expect(textOf(result)).toContain("private mode");
   }));
+
+test("propose lesson tool surfaces related overlaps from the semantic pass", () =>
+  withPlugin(
+    async ({ getTool, connection }) => {
+      const ctx = createToolContext("s1");
+      const first = await getTool("swe_factory_propose_lesson").execute(
+        {
+          title: "Verify schema upgrades",
+          body: "database migration testing before production deployment",
+          rationale: "Caught a broken migration",
+          scope: "global",
+        },
+        ctx,
+      );
+      const firstCandidateId = textOf(first).match(/Candidate ID: (.+)/)![1];
+      await getTool("swe_factory_commit_lesson").execute(
+        { candidateId: firstCandidateId, decision: "approve" },
+        ctx,
+      );
+      await indexConfirmedLessonEmbeddings(connection, { embed: embedStub });
+
+      const second = await getTool("swe_factory_propose_lesson").execute(
+        {
+          title: "Db checks",
+          body: "db upgrade verification ahead of live rollout",
+          rationale: "Expanded the practice after a rollout incident",
+          scope: "global",
+        },
+        ctx,
+      );
+      expect(textOf(second)).toContain("[related]");
+      expect(textOf(second)).toContain("Verify schema upgrades");
+    },
+    {
+      createLessonEmbedder: async () => embedStub,
+    },
+  ));
+
+const embedStub: EmbedLessonTextFn = (text) => {
+  const lower = text.toLowerCase();
+  const vector = new Float32Array(EMBEDDING_VECTOR_DIMENSIONS);
+  if (lower.includes("migration") || lower.includes("database") || lower.includes("upgrade")) {
+    vector[0] = 1;
+  } else {
+    vector[2] = 1;
+  }
+  return Promise.resolve(vector);
+};
 
 // --- Tool: commit lesson ---
 
