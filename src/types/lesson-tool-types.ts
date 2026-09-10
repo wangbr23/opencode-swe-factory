@@ -31,3 +31,9 @@ export type CommitLessonToolInput = Readonly<{
 export type CommitLessonToolResult =
   | Readonly<{ status: "committed"; outcome: LessonCandidateReviewOutcome }>
   | Readonly<{ status: "failed"; error: string }>;
+
+export type ResolveOverlapToolInput = Readonly<{
+  candidateId: string;
+  overlappingLessonId: string;
+  acknowledgedSecretRisk?: boolean;
+}>;

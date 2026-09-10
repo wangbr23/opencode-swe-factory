@@ -1,18 +1,11 @@
 import { reviewLessonCandidate } from "../core/lessons/lessons.js";
-import { supersedeLesson } from "../core/lessons/lesson-supersession.js";
 import type { SqliteConnection } from "../core/db/sqlite.js";
 import type { ProposeLessonToolResult, ScanTextFn } from "../types/lesson-tool-types.js";
-import type {
-  EditAndReproposeInput,
-  ResolveOverlapInput,
-  ResolveOverlapResult,
-} from "../types/approval-flow-types.js";
+import type { EditAndReproposeInput } from "../types/approval-flow-types.js";
 import { handleProposeLesson } from "./lesson-tools.js";
 
 export type {
   EditAndReproposeInput,
-  ResolveOverlapInput,
-  ResolveOverlapResult,
 } from "../types/approval-flow-types.js";
 
 export function formatApprovalCard(result: ProposeLessonToolResult): string {
@@ -93,28 +86,4 @@ export async function editAndRepropose(
         : { title: input.title, body: input.body, rationale: input.rationale, scope: input.scope };
 
   return handleProposeLesson(connection, projectId, scanText, proposeInput);
-}
-
-export function resolveOverlap(
-  connection: SqliteConnection,
-  input: ResolveOverlapInput,
-): ResolveOverlapResult {
-  try {
-    const supersession = supersedeLesson(connection, {
-      lessonId: input.overlappingLessonId,
-      draft: input.draft,
-    });
-
-    reviewLessonCandidate(connection, {
-      candidateId: input.candidateId,
-      decision: "reject",
-    });
-
-    return { status: "resolved", supersession };
-  } catch (error) {
-    return {
-      status: "failed",
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
 }

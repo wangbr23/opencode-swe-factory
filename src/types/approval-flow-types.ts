@@ -1,4 +1,4 @@
-import type { LessonCandidateDraft, LessonScope } from "./lessons-types.js";
+import type { LessonScope } from "./lessons-types.js";
 
 export type EditAndReproposeInput = Readonly<{
   candidateId: string;
@@ -9,11 +9,3 @@ export type EditAndReproposeInput = Readonly<{
   applicability?: Readonly<Record<string, unknown>>;
   provenance?: Readonly<Record<string, unknown>>;
 }>;
-
-export type ResolveOverlapInput = Readonly<{
-  candidateId: string;
-  overlappingLessonId: string;
-  draft: LessonCandidateDraft;
-}>;
-
-export type { ResolveOverlapResult } from "./lesson-overlap-resolution-types.js";

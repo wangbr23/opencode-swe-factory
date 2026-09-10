@@ -27,6 +27,7 @@ test("composePluginHooks returns hooks with expected shape", () =>
 
     expect(getTool("swe_factory_propose_lesson")).toBeDefined();
     expect(getTool("swe_factory_commit_lesson")).toBeDefined();
+    expect(getTool("swe_factory_resolve_overlap")).toBeDefined();
     expect(getTool("swe_factory_get_toggles")).toBeDefined();
     expect(getTool("swe_factory_set_private_mode")).toBeDefined();
     expect(getTool("swe_factory_set_toggle")).toBeDefined();
@@ -333,6 +334,126 @@ test("commit lesson tool handles invalid candidate", () =>
       createToolContext("s1"),
     );
     expect(textOf(result)).toContain("failed");
+  }));
+
+// --- Tool: resolve overlap ---
+
+test("resolve overlap tool supersedes the lesson and removes the candidate", () =>
+  withPlugin(async ({ getTool, connection }) => {
+    const ctx = createToolContext("s1");
+    const proposeResult = await getTool("swe_factory_propose_lesson").execute(
+      {
+        title: "Use strict equality",
+        body: "Always use === instead of == in JavaScript comparisons",
+        rationale: "Prevents type coercion bugs",
+        scope: "global",
+      },
+      ctx,
+    );
+    const originalCandidateId = textOf(proposeResult).match(/Candidate ID: (.+)/)![1];
+    await getTool("swe_factory_commit_lesson").execute(
+      { candidateId: originalCandidateId, decision: "approve" },
+      ctx,
+    );
+    const lessonId = connection.database
+      .query<{ id: string }, []>("SELECT id FROM lessons LIMIT 1")
+      .get()!.id;
+
+    const correction = await getTool("swe_factory_propose_lesson").execute(
+      {
+        title: "Use strict equality everywhere",
+        body: "Always use === instead of == in JavaScript comparisons, including switch cases",
+        rationale: "Extended after a coercion bug in a switch statement",
+        scope: "global",
+      },
+      ctx,
+    );
+    const correctionCard = textOf(correction);
+    expect(correctionCard).toContain("Overlapping confirmed lessons:");
+    const candidateId = correctionCard.match(/Candidate ID: (.+)/)![1];
+
+    const resolveResult = await getTool("swe_factory_resolve_overlap").execute(
+      { candidateId, overlappingLessonId: lessonId },
+      ctx,
+    );
+    expect(textOf(resolveResult)).toContain("Overlap resolved");
+
+    const pending = connection.database
+      .query<{ id: string }, []>("SELECT id FROM pending_lesson_candidates")
+      .all();
+    expect(pending).toHaveLength(0);
+    const active = connection.database
+      .query<{ active_version: number }, [string]>(
+        "SELECT active_version FROM lessons WHERE id = ?",
+      )
+      .get(lessonId);
+    expect(active!.active_version).toBe(2);
+  }));
+
+test("resolve overlap tool handles invalid ids", () =>
+  withPlugin(async ({ getTool }) => {
+    const result = await getTool("swe_factory_resolve_overlap").execute(
+      { candidateId: "nonexistent", overlappingLessonId: "also-nonexistent" },
+      createToolContext("s1"),
+    );
+    expect(textOf(result)).toContain("Overlap resolution failed");
+    expect(textOf(result)).toContain("not found");
+  }));
+
+test("resolve overlap tool works in private mode for a pre-existing candidate", () =>
+  withPlugin(async ({ connection, getTool, projectId }) => {
+    const clearScan: SecretScanResult = {
+      disposition: "clear",
+      findings: [],
+      redactedText: "",
+    };
+    const approved = proposeLessonCandidate(connection, {
+      projectId: null,
+      scope: "global",
+      draft: {
+        title: "Old convention",
+        body: "Use camelCase for variables in shared code",
+        rationale: "Team convention",
+        applicability: {},
+        provenance: {},
+      },
+      secretScan: clearScan,
+    });
+    reviewLessonCandidate(connection, {
+      candidateId: approved.id,
+      decision: "approve",
+    });
+    const lessonId = connection.database
+      .query<{ id: string }, []>("SELECT id FROM lessons LIMIT 1")
+      .get()!.id;
+    const candidate = proposeLessonCandidate(connection, {
+      projectId: null,
+      scope: "global",
+      draft: {
+        title: "New convention",
+        body: "Use snake_case for variables in shared code instead",
+        rationale: "Team switched convention",
+        applicability: {},
+        provenance: {},
+      },
+      secretScan: clearScan,
+    });
+
+    const ctx = createToolContext("s1");
+    await getTool("swe_factory_set_private_mode").execute({ enabled: true }, ctx);
+
+    const result = await getTool("swe_factory_resolve_overlap").execute(
+      { candidateId: candidate.id, overlappingLessonId: lessonId },
+      ctx,
+    );
+    expect(textOf(result)).toContain("Overlap resolved");
+    const pending = connection.database
+      .query<{ count: number }, [string]>(
+        "SELECT count(*) AS count FROM pending_lesson_candidates WHERE id = ?",
+      )
+      .get(candidate.id);
+    expect(pending!.count).toBe(0);
+    expect(projectId).toBeDefined();
   }));
 
 // --- Tool: toggles ---

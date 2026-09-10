@@ -8,14 +8,13 @@ import {
   openSqliteConnection,
   proposeLessonCandidate,
   releaseSchemaMigrations,
-  supersedeLesson,
+  resolvePendingLessonOverlap,
   type SecretScanResult,
   type SqliteConnection,
 } from "../../src/core/index.js";
 import {
   editAndRepropose,
   formatApprovalCard,
-  resolveOverlap,
 } from "../../src/opencode/approval-flow.js";
 import { handleProposeLesson } from "../../src/opencode/lesson-tools.js";
 import type { ProposeLessonToolResult, ScanTextFn } from "../../src/types/lesson-tool-types.js";
@@ -343,9 +342,9 @@ test("editAndRepropose preserves applicability and provenance when provided", as
   });
 });
 
-// --- resolveOverlap tests ---
+// --- resolvePendingLessonOverlap integration (core operation) ---
 
-test("resolveOverlap supersedes overlapping lesson and rejects candidate", () => {
+test("resolvePendingLessonOverlap supersedes overlapping lesson and rejects candidate", () => {
   withDatabase((connection) => {
     insertConfirmedLesson(connection, "lesson-1", {
       title: "Old naming convention",
@@ -365,16 +364,10 @@ test("resolveOverlap supersedes overlapping lesson and rejects candidate", () =>
       secretScan: clearScan,
     });
 
-    const result = resolveOverlap(connection, {
+    const result = resolvePendingLessonOverlap(connection, {
       candidateId: candidate.id,
       overlappingLessonId: "lesson-1",
-      draft: {
-        title: "Updated naming convention",
-        body: "Use snake_case for variables instead.",
-        rationale: "Team decided to switch.",
-        applicability: {},
-        provenance: {},
-      },
+      callerProjectId: null,
     });
 
     expect(result.status).toBe("resolved");
@@ -396,52 +389,7 @@ test("resolveOverlap supersedes overlapping lesson and rejects candidate", () =>
   });
 });
 
-test("resolveOverlap with a merged draft combines content from both sources", () => {
-  withDatabase((connection) => {
-    insertConfirmedLesson(connection, "lesson-1", {
-      title: "Error handling basics",
-      body: "Always catch errors at API boundaries.",
-    });
-
-    const candidate = proposeLessonCandidate(connection, {
-      projectId: null,
-      scope: "global",
-      draft: {
-        title: "Error handling with logging",
-        body: "Log structured errors with context.",
-        rationale: "Complementary practice.",
-        applicability: {},
-        provenance: {},
-      },
-      secretScan: clearScan,
-    });
-
-    const result = resolveOverlap(connection, {
-      candidateId: candidate.id,
-      overlappingLessonId: "lesson-1",
-      draft: {
-        title: "Error handling and logging",
-        body: "Always catch errors at API boundaries. Log structured errors with context.",
-        rationale: "Merged from original and new lesson.",
-        applicability: {},
-        provenance: { mergedFrom: [candidate.id] },
-      },
-    });
-
-    expect(result.status).toBe("resolved");
-    if (result.status === "resolved") {
-      const version = connection.database
-        .query<{ body: string }, [string, number]>(
-          "SELECT body FROM lesson_versions WHERE lesson_id = ? AND version = ?",
-        )
-        .get("lesson-1", result.supersession.version);
-      expect(version!.body).toContain("API boundaries");
-      expect(version!.body).toContain("structured errors");
-    }
-  });
-});
-
-test("resolveOverlap fails when overlapping lesson does not exist", () => {
+test("resolvePendingLessonOverlap fails when overlapping lesson does not exist", () => {
   withDatabase((connection) => {
     const candidate = proposeLessonCandidate(connection, {
       projectId: null,
@@ -456,16 +404,10 @@ test("resolveOverlap fails when overlapping lesson does not exist", () => {
       secretScan: clearScan,
     });
 
-    const result = resolveOverlap(connection, {
+    const result = resolvePendingLessonOverlap(connection, {
       candidateId: candidate.id,
       overlappingLessonId: "nonexistent",
-      draft: {
-        title: "Replacement",
-        body: "New body.",
-        rationale: "Replacing.",
-        applicability: {},
-        provenance: {},
-      },
+      callerProjectId: null,
     });
 
     expect(result.status).toBe("failed");
@@ -475,23 +417,17 @@ test("resolveOverlap fails when overlapping lesson does not exist", () => {
   });
 });
 
-test("resolveOverlap fails when candidate does not exist", () => {
+test("resolvePendingLessonOverlap fails when candidate does not exist", () => {
   withDatabase((connection) => {
     insertConfirmedLesson(connection, "lesson-1", {
       title: "Existing",
       body: "Existing body.",
     });
 
-    const result = resolveOverlap(connection, {
+    const result = resolvePendingLessonOverlap(connection, {
       candidateId: "nonexistent-candidate",
       overlappingLessonId: "lesson-1",
-      draft: {
-        title: "Replacement",
-        body: "New body.",
-        rationale: "Replacing.",
-        applicability: {},
-        provenance: {},
-      },
+      callerProjectId: null,
     });
 
     expect(result.status).toBe("failed");
@@ -546,10 +482,10 @@ test("full flow: propose with overlap, then resolve via supersede", async () => 
     const overlap = proposed.overlaps[0];
     expect(overlap).toBeDefined();
 
-    const resolved = resolveOverlap(connection, {
+    const resolved = resolvePendingLessonOverlap(connection, {
       candidateId: proposed.candidate.id,
       overlappingLessonId: overlap!.lessonId,
-      draft: proposed.candidate.draft,
+      callerProjectId: null,
     });
 
     expect(resolved.status).toBe("resolved");

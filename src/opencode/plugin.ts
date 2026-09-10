@@ -41,7 +41,7 @@ import {
   createToolOutcomeCaptureState,
   handleToolCompletion,
 } from "./tool-outcome-capture.js";
-import { handleProposeLesson, handleCommitLesson } from "./lesson-tools.js";
+import { handleProposeLesson, handleCommitLesson, handleResolveOverlap } from "./lesson-tools.js";
 import { formatApprovalCard } from "./approval-flow.js";
 import {
   describeFeedbackResult,
@@ -477,6 +477,38 @@ export function composePluginHooks(deps: PluginDependencies): Hooks {
             return `Lesson ${outcomeText} successfully.`;
           }
           return `Lesson commit failed: ${result.error}`;
+        },
+      }),
+
+      swe_factory_resolve_overlap: tool({
+        description:
+          "Resolve an overlapping lesson candidate by superseding the overlapping confirmed lesson with the candidate draft and rejecting the candidate — human-gated: invoke only after the user picks Supersede for that overlap on the approval card.",
+        args: {
+          candidateId: tool.schema
+            .string()
+            .describe("The pending candidate ID to resolve"),
+          overlappingLessonId: tool.schema
+            .string()
+            .describe("The confirmed lesson ID to supersede with the candidate draft"),
+          acknowledgedSecretRisk: tool.schema
+            .boolean()
+            .optional()
+            .describe(
+              "Required when the candidate has low-confidence secret findings",
+            ),
+        },
+        async execute(args) {
+          const result = handleResolveOverlap(connection, projectId, {
+            candidateId: args.candidateId,
+            overlappingLessonId: args.overlappingLessonId,
+            ...(args.acknowledgedSecretRisk !== undefined
+              ? { acknowledgedSecretRisk: args.acknowledgedSecretRisk }
+              : {}),
+          });
+          if (result.status === "resolved") {
+            return `Overlap resolved: lesson ${result.supersession.lessonId} version ${result.supersession.supersededVersion} superseded by version ${result.supersession.version}; candidate rejected.`;
+          }
+          return `Overlap resolution failed: ${result.error}`;
         },
       }),
 

@@ -1,4 +1,5 @@
 import { proposeLessonCandidate, reviewLessonCandidate } from "../core/lessons/lessons.js";
+import { resolvePendingLessonOverlap } from "../core/lessons/lesson-overlap-resolution.js";
 import { detectLessonDuplicatesAndConflicts } from "../core/lessons/lesson-duplicate-detection.js";
 import type { SqliteConnection } from "../core/db/sqlite.js";
 import type {
@@ -6,14 +7,17 @@ import type {
   CommitLessonToolResult,
   ProposeLessonToolInput,
   ProposeLessonToolResult,
+  ResolveOverlapToolInput,
   ScanTextFn,
 } from "../types/lesson-tool-types.js";
+import type { ResolveOverlapResult } from "../types/lesson-overlap-resolution-types.js";
 
 export type {
   CommitLessonToolInput,
   CommitLessonToolResult,
   ProposeLessonToolInput,
   ProposeLessonToolResult,
+  ResolveOverlapToolInput,
   ScanTextFn,
 } from "../types/lesson-tool-types.js";
 
@@ -81,4 +85,25 @@ export function handleCommitLesson(
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+/**
+ * Thin adapter wrapper around the core resolution operation: the session's
+ * project id is the caller identity for authorization, and no private-mode
+ * gate applies (resolution reviews an already-scanned, already-persisted
+ * candidate and processes no new task text).
+ */
+export function handleResolveOverlap(
+  connection: SqliteConnection,
+  projectId: string | null,
+  input: ResolveOverlapToolInput,
+): ResolveOverlapResult {
+  return resolvePendingLessonOverlap(connection, {
+    candidateId: input.candidateId,
+    overlappingLessonId: input.overlappingLessonId,
+    callerProjectId: projectId,
+    ...(input.acknowledgedSecretRisk !== undefined
+      ? { acknowledgedSecretRisk: input.acknowledgedSecretRisk }
+      : {}),
+  });
 }
