@@ -9,6 +9,8 @@ import {
   LESSON_ISOLATION_PROJECT_ALPHA_PATH,
   LESSON_ISOLATION_PROJECT_BETA_PATH,
   PRECEDENCE_QUERY,
+  SEMANTIC_OVERRIDE_LESSON,
+  SEMANTIC_OVERRIDE_QUERY,
   CONFLICT_QUERY,
   SUPERSEDED_LESSON,
   SUPERSEDED_QUERY,
@@ -30,11 +32,25 @@ type SeededResult = Readonly<{
   conflictLessonIds: ReadonlyArray<string>;
 }>;
 
+type SemanticSeededResult = Readonly<{
+  status: "semantic-seeded";
+  lessonId: string;
+}>;
+
 type SupersededResult = Readonly<{
   status: "superseded";
   supersededVersion: number;
   version: number;
   activeVersion: number;
+}>;
+
+type ResolvedResult = Readonly<{
+  status: "resolved";
+  approvalCard: string;
+  resolution: string;
+  activeVersion: number;
+  indexedVersion: number;
+  pendingCandidateCount: number;
 }>;
 
 type RecalledResult = Readonly<{
@@ -51,9 +67,9 @@ const PROCESS_FIXTURE = join(import.meta.dir, "fixtures", "lesson-isolation-proc
 const PROCESS_TIMEOUT_MS = 10_000;
 
 function parseProcessOutput(
-  mode: "seed" | "supersede" | "recall",
+  mode: "seed" | "seed-override" | "supersede" | "resolve" | "recall",
   stdout: string,
-): SeededResult | SupersededResult | RecalledResult {
+): SeededResult | SemanticSeededResult | SupersededResult | ResolvedResult | RecalledResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout.trim());
@@ -68,12 +84,14 @@ function parseProcessOutput(
   const result = parsed as Record<string, unknown>;
   const validStatus =
     (mode === "seed" && result.status === "seeded") ||
+    (mode === "seed-override" && result.status === "semantic-seeded") ||
     (mode === "supersede" && result.status === "superseded") ||
+    (mode === "resolve" && result.status === "resolved") ||
     (mode === "recall" && result.status === "recalled");
   if (!validStatus) {
     throw new Error(`Lesson-isolation ${mode} process returned an invalid result: ${stdout}`);
   }
-  return result as unknown as SeededResult | SupersededResult | RecalledResult;
+  return result as unknown as SeededResult | SemanticSeededResult | SupersededResult | ResolvedResult | RecalledResult;
 }
 
 async function runProcess(
@@ -82,11 +100,22 @@ async function runProcess(
   diagnosticsPath: string,
 ): Promise<SeededResult>;
 async function runProcess(
+  mode: "seed-override",
+  databasePath: string,
+  diagnosticsPath: string,
+): Promise<SemanticSeededResult>;
+async function runProcess(
   mode: "supersede",
   databasePath: string,
   diagnosticsPath: string,
   options: { lessonId: string },
 ): Promise<SupersededResult>;
+async function runProcess(
+  mode: "resolve",
+  databasePath: string,
+  diagnosticsPath: string,
+  options: { lessonId: string },
+): Promise<ResolvedResult>;
 async function runProcess(
   mode: "recall",
   databasePath: string,
@@ -94,13 +123,13 @@ async function runProcess(
   options: RecallOptions,
 ): Promise<RecalledResult>;
 async function runProcess(
-  mode: "seed" | "supersede" | "recall",
+  mode: "seed" | "seed-override" | "supersede" | "resolve" | "recall",
   databasePath: string,
   diagnosticsPath: string,
   options?: { lessonId?: string; projectPath?: string; query?: string },
 ): Promise<unknown> {
   const cmd = [process.execPath, PROCESS_FIXTURE, mode, databasePath, diagnosticsPath];
-  if (mode === "supersede") cmd.push(options?.lessonId ?? "");
+  if (mode === "supersede" || mode === "resolve") cmd.push(options?.lessonId ?? "");
   if (mode === "recall") cmd.push(options?.projectPath ?? "", options?.query ?? "");
 
   const child = Bun.spawn({
@@ -238,6 +267,37 @@ test("isolates project lessons across processes with supersession and conflict s
     expect(keptLesson).toBeDefined();
     expect(conflictRecall.system).toContain(keptLesson?.body ?? "");
     expect(conflictRecall.system).not.toContain(suppressedLesson?.body ?? "");
+
+    const semanticSeed = await runProcess("seed-override", databasePath, directory);
+    const resolved = await runProcess("resolve", databasePath, directory, {
+      lessonId: semanticSeed.lessonId,
+    });
+    expect(resolved.approvalCard).toContain("[related]");
+    expect(resolved.approvalCard).toContain(SEMANTIC_OVERRIDE_LESSON.v1Title);
+    expect(resolved.approvalCard).toContain(SEMANTIC_OVERRIDE_LESSON.v1Body);
+    expect(resolved.approvalCard).toContain("100% semantic similarity");
+    expect(resolved.approvalCard).not.toContain(
+      `Available action: Supersede ${semanticSeed.lessonId}`,
+    );
+    expect(resolved.resolution).toContain(
+      `lesson ${semanticSeed.lessonId} version 1 superseded by version 2`,
+    );
+    expect(resolved.activeVersion).toBe(2);
+    expect(resolved.indexedVersion).toBe(2);
+    expect(resolved.pendingCandidateCount).toBe(0);
+
+    const overrideRecall = await runProcess("recall", databasePath, directory, {
+      projectPath: LESSON_ISOLATION_PROJECT_ALPHA_PATH,
+      query: SEMANTIC_OVERRIDE_QUERY,
+    });
+    const overrideEntry = retrievedByBody(overrideRecall, SEMANTIC_OVERRIDE_LESSON.v2Body);
+    expect(overrideEntry.lessonId).toBe(semanticSeed.lessonId);
+    expect(overrideEntry.version).toBe(2);
+    expect(overrideRecall.retrieved.some(
+      (lesson) => lesson.body === SEMANTIC_OVERRIDE_LESSON.v1Body,
+    )).toBe(false);
+    expect(overrideRecall.system).toContain(SEMANTIC_OVERRIDE_LESSON.v2Body);
+    expect(overrideRecall.system).not.toContain(SEMANTIC_OVERRIDE_LESSON.v1Body);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

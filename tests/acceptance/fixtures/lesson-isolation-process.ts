@@ -25,6 +25,7 @@ import {
   CONFLICT_LESSONS,
   GLOBAL_LESSON,
   LESSON_ISOLATION_PROJECT_ALPHA_PATH,
+  SEMANTIC_OVERRIDE_LESSON,
   SUPERSEDED_LESSON,
 } from "./lesson-isolation-values.js";
 
@@ -35,16 +36,16 @@ const projectPathOrLessonId = process.argv[5];
 const query = process.argv[6];
 
 const usage =
-  "Usage: lesson-isolation-process.ts seed <db> <diag> | supersede <db> <diag> <lesson-id> | recall <db> <diag> <project-path> <query>";
+  "Usage: lesson-isolation-process.ts seed <db> <diag> | seed-override <db> <diag> | supersede <db> <diag> <lesson-id> | resolve <db> <diag> <lesson-id> | recall <db> <diag> <project-path> <query>";
 
 if (
-  (mode !== "seed" && mode !== "supersede" && mode !== "recall") ||
+  (mode !== "seed" && mode !== "seed-override" && mode !== "supersede" && mode !== "resolve" && mode !== "recall") ||
   databasePath === undefined ||
   diagnosticsPath === undefined
 ) {
   throw new Error(usage);
 }
-if (mode === "supersede" && projectPathOrLessonId === undefined) {
+if ((mode === "supersede" || mode === "resolve") && projectPathOrLessonId === undefined) {
   throw new Error(usage);
 }
 if (mode === "recall" && (projectPathOrLessonId === undefined || query === undefined)) {
@@ -55,6 +56,11 @@ const embed = async (text: string): Promise<Float32Array> => {
   // Deterministic term hashing keeps this acceptance network-free while letting
   // semantic similarity discriminate between lessons; T50 measures real quality.
   const vector = new Float32Array(EMBEDDING_VECTOR_DIMENSIONS);
+  const lower = text.toLowerCase();
+  if (lower.includes("database") || lower.includes("upgrade")) {
+    vector[0] = 1;
+    return vector;
+  }
   const tokens = text.toLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? [];
   for (const token of tokens) {
     let hash = 5381;
@@ -151,6 +157,76 @@ try {
       globalLessonId: findLessonIdByBody(connection, GLOBAL_LESSON.body),
       conflictLessonIds: CONFLICT_LESSONS.map((lesson) => findLessonIdByBody(connection, lesson.body)),
     }));
+  } else if (mode === "seed-override") {
+    const { project } = resolveProjectIdentity(connection, {
+      projectPath: LESSON_ISOLATION_PROJECT_ALPHA_PATH,
+    });
+    hooks = composePluginHooks({
+      connection,
+      config: createDefaultConfig(),
+      projectId: project.id,
+      compatibility: { status: "supported", version: "1.18.27" },
+      diagnosticsPath,
+      createLessonEmbedder: async () => embed,
+    });
+    const propose = hooks.tool?.swe_factory_propose_lesson;
+    const commit = hooks.tool?.swe_factory_commit_lesson;
+    if (propose === undefined || commit === undefined) {
+      throw new Error("Lesson approval tools are not registered.");
+    }
+
+    const approvalCard = textOf(
+      await propose.execute(
+        {
+          title: SEMANTIC_OVERRIDE_LESSON.v1Title,
+          body: SEMANTIC_OVERRIDE_LESSON.v1Body,
+          rationale: SEMANTIC_OVERRIDE_LESSON.rationale,
+          scope: "project",
+        },
+        createToolContext("isolation-seed-override"),
+      ),
+    );
+    const candidateId = approvalCard.match(/^Candidate ID: (.+)$/m)?.[1];
+    if (candidateId === undefined) {
+      throw new Error(`Semantic override seed did not return a candidate ID:\n${approvalCard}`);
+    }
+    const commitResult = textOf(
+      await commit.execute(
+        { candidateId, decision: "approve" },
+        createToolContext("isolation-seed-override"),
+      ),
+    );
+    if (commitResult !== "Lesson approved successfully.") {
+      throw new Error(commitResult);
+    }
+
+    const lessonId = findLessonIdByBody(connection, SEMANTIC_OVERRIDE_LESSON.v1Body);
+    const oldTimestamp = "2025-01-01T00:00:00.000Z";
+    connection.database.run(
+      "UPDATE lessons SET created_at = ?, updated_at = ? WHERE id = ?",
+      [oldTimestamp, oldTimestamp, lessonId],
+    );
+    connection.database.run(
+      "UPDATE lesson_versions SET created_at = ? WHERE lesson_id = ? AND version = 1",
+      [oldTimestamp, lessonId],
+    );
+
+    const indexingDeadline = Date.now() + 5000;
+    let indexedVersion: number | undefined;
+    while (Date.now() < indexingDeadline) {
+      indexedVersion = connection.database
+        .query<{ version: number }, [string]>(
+          "SELECT lesson_version AS version FROM lesson_version_embeddings WHERE lesson_id = ?",
+        )
+        .get(lessonId)?.version;
+      if (indexedVersion === 1) break;
+      await Bun.sleep(10);
+    }
+    if (indexedVersion !== 1) {
+      throw new Error(`Semantic override seed was not indexed: ${String(indexedVersion)}`);
+    }
+
+    console.log(JSON.stringify({ status: "semantic-seeded", lessonId }));
   } else if (mode === "supersede") {
     const result = supersedeLesson(connection, {
       lessonId: projectPathOrLessonId as string,
@@ -174,6 +250,91 @@ try {
       supersededVersion: result.supersededVersion,
       version: result.version,
       activeVersion: result.activeVersion,
+    }));
+  } else if (mode === "resolve") {
+    const { project } = resolveProjectIdentity(connection, {
+      projectPath: LESSON_ISOLATION_PROJECT_ALPHA_PATH,
+    });
+    hooks = composePluginHooks({
+      connection,
+      config: createDefaultConfig(),
+      projectId: project.id,
+      compatibility: { status: "supported", version: "1.18.27" },
+      diagnosticsPath,
+      createLessonEmbedder: async () => embed,
+    });
+
+    const chatMessage = hooks["chat.message"] as ChatMessageHook;
+    const warmup = chatInput("isolation-resolve", "Initialize local meaning search.", "resolve-warmup");
+    await chatMessage(warmup.input, warmup.output);
+    await Promise.resolve();
+
+    const propose = hooks.tool?.swe_factory_propose_lesson;
+    const resolveOverlap = hooks.tool?.swe_factory_resolve_overlap;
+    if (propose === undefined || resolveOverlap === undefined) {
+      throw new Error("Lesson overlap tools are not registered.");
+    }
+
+    const approvalCard = textOf(
+      await propose.execute(
+        {
+          title: SEMANTIC_OVERRIDE_LESSON.v2Title,
+          body: SEMANTIC_OVERRIDE_LESSON.v2Body,
+          rationale: SEMANTIC_OVERRIDE_LESSON.rationale,
+          scope: "project",
+        },
+        createToolContext("isolation-resolve"),
+      ),
+    );
+    const candidateId = approvalCard.match(/^Candidate ID: (.+)$/m)?.[1];
+    if (candidateId === undefined) {
+      throw new Error(`Semantic override proposal did not return a candidate ID:\n${approvalCard}`);
+    }
+
+    const lessonId = projectPathOrLessonId as string;
+    const resolution = textOf(
+      await resolveOverlap.execute(
+        { candidateId, overlappingLessonId: lessonId },
+        createToolContext("isolation-resolve"),
+      ),
+    );
+    if (!resolution.startsWith("Overlap resolved:")) {
+      throw new Error(resolution);
+    }
+
+    const indexingDeadline = Date.now() + 5000;
+    let indexedVersion: number | undefined;
+    while (Date.now() < indexingDeadline) {
+      indexedVersion = connection.database
+        .query<{ version: number }, [string]>(
+          "SELECT lesson_version AS version FROM lesson_version_embeddings WHERE lesson_id = ?",
+        )
+        .get(lessonId)?.version;
+      if (indexedVersion === 2) break;
+      await Bun.sleep(10);
+    }
+    if (indexedVersion !== 2) {
+      throw new Error(`Resolved lesson version was not indexed: ${String(indexedVersion)}`);
+    }
+
+    const activeVersion = connection.database
+      .query<{ version: number }, [string]>(
+        "SELECT active_version AS version FROM lessons WHERE id = ?",
+      )
+      .get(lessonId)?.version;
+    const pendingCandidateCount = connection.database
+      .query<{ count: number }, [string]>(
+        "SELECT count(*) AS count FROM pending_lesson_candidates WHERE id = ?",
+      )
+      .get(candidateId)?.count ?? 0;
+
+    console.log(JSON.stringify({
+      status: "resolved",
+      approvalCard,
+      resolution,
+      activeVersion,
+      indexedVersion,
+      pendingCandidateCount,
     }));
   } else {
     const { project } = resolveProjectIdentity(connection, {

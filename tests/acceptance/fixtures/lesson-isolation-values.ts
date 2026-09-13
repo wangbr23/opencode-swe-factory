@@ -10,6 +10,14 @@ export const SUPERSEDED_LESSON = {
   rationale: "A human corrected a stale generated Prisma client.",
 } as const;
 
+export const SEMANTIC_OVERRIDE_LESSON = {
+  v1Title: "Ship schema changes untested",
+  v1Body: "Skip database validation before production rollout.",
+  v2Title: "Exercise the upgrade path",
+  v2Body: "Exercise the upgrade path in staging prior to shipping.",
+  rationale: "A rollout failed because the upgrade path was not exercised first.",
+} as const;
+
 export const GLOBAL_LESSON = {
   title: "Record migration rollback steps",
   body: "Record the migration rollback steps before each production deploy.",
@@ -37,3 +45,6 @@ export const PRECEDENCE_QUERY = "prisma migration restart";
 
 /** Matches both conflicting project lessons to expose conflict suppression. */
 export const CONFLICT_QUERY = "bun test coverage flag";
+
+/** Recalls the semantically detected override after the old version is superseded. */
+export const SEMANTIC_OVERRIDE_QUERY = "upgrade path staging shipping";
