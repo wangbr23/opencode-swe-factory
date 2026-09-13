@@ -89,7 +89,7 @@ Task format: `- [ ] \`T<n>\` <description> — <manual|agent>[, complexity: simp
 - [x] `T81` Add CLI backup and backup-status commands — agent, complexity: simple, depends-on: T11, T42, T68, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T82` Add the explicit embedding-install and offline-status command — agent, complexity: simple, depends-on: T16, T27, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T83` Add SQLite migration, contention, and failure-injection tests — agent, complexity: complex, depends-on: T32, T41, T42, design: docs/designs/2026-09-03-coding-memory-model-router.md
-- [ ] `T84` Review approval-card and receipt usability in live sessions — manual, depends-on: T21, T39, design: docs/designs/2026-09-03-coding-memory-model-router.md
+- [x] `T84` Review approval-card and receipt usability in live sessions — manual, depends-on: T21, T39, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T85` Implement reciprocal-rank fusion and deterministic confirmed-lesson boosts — agent, complexity: complex, depends-on: T17, T45, design: docs/designs/2026-09-05-governed-memory-router-v1.md
 - [x] `T86` Add the CLI project-identity merge command — agent, complexity: complex, depends-on: T33, design: docs/designs/2026-09-03-coding-memory-model-router.md
 - [x] `T87` Implement the end-of-session deferred-candidate review flow — agent, complexity: complex, depends-on: T39, T40, design: docs/designs/2026-09-03-coding-memory-model-router.md
