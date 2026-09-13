@@ -1,12 +1,38 @@
 import { reviewLessonCandidate } from "../core/lessons/lessons.js";
 import type { SqliteConnection } from "../core/db/sqlite.js";
+import type { LessonOverlapMatch } from "../types/lesson-duplicate-detection-types.js";
 import type { ProposeLessonToolResult, ScanTextFn } from "../types/lesson-tool-types.js";
+import type { LessonCandidate } from "../types/lessons-types.js";
 import type { EditAndReproposeInput } from "../types/approval-flow-types.js";
+import { APPROVAL_CARD_OVERLAP_PREVIEW_MAX_CHARACTERS } from "./approval-flow-constants.js";
 import { handleProposeLesson } from "./lesson-tools.js";
 
 export type {
   EditAndReproposeInput,
 } from "../types/approval-flow-types.js";
+
+function formatOverlapEvidence(overlap: LessonOverlapMatch): string {
+  if (overlap.relation === "related") {
+    const similarity = Math.round((overlap.semanticSimilarity ?? 0) * 100);
+    return `[related] "${overlap.title}" (${overlap.lessonId}, v${overlap.version}, ${overlap.scope}) - ${similarity}% semantic similarity`;
+  }
+
+  const bodyOverlap = Math.round(overlap.bodyOverlap * 100);
+  return `[${overlap.relation}] "${overlap.title}" (${overlap.lessonId}, v${overlap.version}, ${overlap.scope}) - ${bodyOverlap}% body overlap`;
+}
+
+function formatBodyPreview(body: string): string {
+  if (body.length <= APPROVAL_CARD_OVERLAP_PREVIEW_MAX_CHARACTERS) return body;
+  return `${body.slice(0, APPROVAL_CARD_OVERLAP_PREVIEW_MAX_CHARACTERS - 3)}...`;
+}
+
+function canSupersede(candidate: LessonCandidate, overlap: LessonOverlapMatch): boolean {
+  return (
+    overlap.relation !== "related" &&
+    overlap.scope === candidate.scope &&
+    overlap.projectId === candidate.projectId
+  );
+}
 
 export function formatApprovalCard(result: ProposeLessonToolResult): string {
   if (result.status === "blocked") {
@@ -17,6 +43,9 @@ export function formatApprovalCard(result: ProposeLessonToolResult): string {
   }
 
   const { candidate, overlaps } = result;
+  const supersedeOptions = overlaps
+    .filter((overlap) => canSupersede(candidate, overlap))
+    .map((overlap) => `Supersede ${overlap.lessonId}`);
   const lines: string[] = [];
 
   lines.push("Lesson Candidate");
@@ -42,18 +71,25 @@ export function formatApprovalCard(result: ProposeLessonToolResult): string {
     lines.push("");
     lines.push("Overlapping confirmed lessons:");
     for (const overlap of overlaps) {
-      const pct = Math.round(overlap.bodyOverlap * 100);
-      lines.push(
-        `  [${overlap.relation}] "${overlap.title}" (${overlap.lessonId}, v${overlap.version}, ${overlap.scope}) — ${pct}% body overlap`,
-      );
+      lines.push("");
+      lines.push(formatOverlapEvidence(overlap));
+      lines.push("---");
+      lines.push(formatBodyPreview(overlap.body));
+      lines.push("---");
+      if (canSupersede(candidate, overlap)) {
+        lines.push(`Available action: Supersede ${overlap.lessonId}`);
+      } else {
+        lines.push("Evidence only: Approve to keep both lessons active, or Reject this candidate.");
+      }
     }
+    lines.push(`Run review ${candidate.id} to inspect the full overlapping lesson text.`);
   }
 
   lines.push("");
   lines.push(`Candidate ID: ${candidate.id}`);
   lines.push("");
   lines.push(
-    "Present this candidate for approval now via the question tool with Approve / Edit / Defer / Reject options — do not just list it in text.",
+    `Present this candidate for approval now via the question tool with ${["Approve", "Edit", "Defer", "Reject", ...supersedeOptions].join(" / ")} options - do not just list it in text.`,
   );
 
   return lines.join("\n");

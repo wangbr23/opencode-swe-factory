@@ -140,6 +140,7 @@ test("formatApprovalCard formats a global lesson proposal", () => {
   expect(card).toContain(
     "Present this candidate for approval now via the question tool",
   );
+  expect(card).toContain("Approve / Edit / Defer / Reject options");
   expect(card).not.toContain("Project:");
   expect(card).not.toContain("Warning:");
   expect(card).not.toContain("Overlapping");
@@ -193,6 +194,57 @@ test("formatApprovalCard shows overlapping lessons with relation and percentage"
   expect(card).toContain("85% body overlap");
   expect(card).toContain('[potential-conflict] "Conflicting lesson"');
   expect(card).toContain("22% body overlap");
+  expect(card).toContain("---\nExisting body content.\n---");
+  expect(card).toContain("Available action: Supersede overlap-1");
+  expect(card).toContain("Available action: Supersede overlap-2");
+  expect(card).toContain("Reject / Supersede overlap-1 / Supersede overlap-2 options");
+  expect(card).toContain("Run review candidate-1 to inspect the full overlapping lesson text.");
+});
+
+test("formatApprovalCard bounds overlapping lesson body previews", () => {
+  const omittedSuffix = "OMITTED-SUFFIX";
+  const result: ProposeLessonToolResult = {
+    status: "proposed",
+    candidate: makeCandidate(),
+    overlaps: [makeOverlap({ body: `${"x".repeat(900)}${omittedSuffix}` })],
+  };
+
+  const card = formatApprovalCard(result);
+
+  const preview = card.split("---")[1]!.trim();
+  expect(preview).toHaveLength(800);
+  expect(preview.endsWith("...")).toBe(true);
+  expect(card).not.toContain(omittedSuffix);
+});
+
+test("formatApprovalCard offers Supersede only for eligible lexical overlaps", () => {
+  const result: ProposeLessonToolResult = {
+    status: "proposed",
+    candidate: makeCandidate({ scope: "project", projectId: "proj-1" }),
+    overlaps: [
+      makeOverlap({ lessonId: "eligible", scope: "project", projectId: "proj-1" }),
+      makeOverlap({ lessonId: "wrong-project", scope: "project", projectId: "proj-2" }),
+      makeOverlap({ lessonId: "wrong-scope", scope: "global", projectId: null }),
+      makeOverlap({
+        lessonId: "semantic-only",
+        scope: "project",
+        projectId: "proj-1",
+        relation: "related",
+        semanticSimilarity: 0.91,
+      }),
+    ],
+  };
+
+  const card = formatApprovalCard(result);
+
+  expect(card).toContain("Available action: Supersede eligible");
+  expect(card).not.toContain("Available action: Supersede wrong-project");
+  expect(card).not.toContain("Available action: Supersede wrong-scope");
+  expect(card).not.toContain("Available action: Supersede semantic-only");
+  expect(card).toContain('[related] "Existing lesson"');
+  expect(card).toContain("91% semantic similarity");
+  expect(card).not.toContain("91% body overlap");
+  expect(card).toContain("Evidence only: Approve to keep both lessons active, or Reject this candidate.");
 });
 
 test("formatApprovalCard handles blocked result", () => {
