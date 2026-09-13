@@ -403,3 +403,9 @@ No production code changed. Verification passed with 773 tests across 95 files, 
 The final card instruction now names each eligible `Supersede <lesson-id>` option alongside Approve/Edit/Defer/Reject, so the question interaction can expose only actions the core resolution guard will accept. The no-overlap card remains unchanged apart from ASCII punctuation. New focused tests cover bounded previews and omitted suffixes, delimiters and full-review pointers, relation-specific metrics, and the scope/project/relation eligibility matrix.
 
 Verified the built package in a real OpenCode 1.18.30 process with isolated data: a project-scoped proposal matched a seeded confirmed lesson, displayed the fenced existing body and 42% overlap, and exposed the exact Supersede action in both the evidence row and question instruction. Full verification passed with 775 tests across 95 files, `bun run typecheck`, `bun run build`, and `git diff --check`.
+
+## 2026-09-13 — T104: surfaced the lesson maintenance digest through the CLI
+
+Added the read-only `maintenance` command promised by the background diagnostic. It opens and migrates the selected database, uses the package config's stale/unused thresholds exactly as the background scheduler does, and prints summary metadata plus stale, unused, duplicate, and potential-conflict sections. Lesson rows carry id, active version, scope/project, title, and relevant age/retrieval data; overlap pairs carry both ids/titles and body-overlap percentage. A warning appears when the bounded pairwise scan is truncated.
+
+Three CLI tests cover a populated digest across all four sections, custom age thresholds from an isolated config, and help discovery. The real command was also run against the live store, where it reported 27 active lessons and the same three potential conflicts advertised by diagnostics. Verification passed with 778 tests across 96 files, `bun run typecheck`, `bun run build`, and `git diff --check`.

@@ -12,6 +12,7 @@ import {
   TASK_DOMAIN_VALUES,
   TASK_RISK_VALUES,
   applyBackupRetention,
+  buildLessonMaintenanceDigest,
   correctTaskProfile,
   createBackupSnapshot,
   createHealthReport,
@@ -98,6 +99,7 @@ Commands:
   status                    Show diagnostics, paths, and compatibility status
   embeddings-install        Download and verify the pinned embedding artifacts
   embeddings-status         Show embedding artifact state and offline readiness
+  maintenance               Show stale, unused, duplicate, and conflicting lessons
 
 Options:
   --database <path>          Path to the SQLite database file
@@ -257,6 +259,67 @@ function runBackupStatusCommand(parsed: ParsedArgs): void {
   for (const backup of backups) {
     const sizeBytes = statSync(backup.backupPath).size;
     console.log(`  ${backup.createdAt}  ${backup.backupPath}  (${sizeBytes} bytes)`);
+  }
+}
+
+function formatMaintenanceScope(scope: "global" | "project", projectId: string | null): string {
+  return scope === "project" ? `project:${projectId}` : "global";
+}
+
+function runMaintenanceCommand(parsed: ParsedArgs): void {
+  const config = loadPackageConfig(resolveConfigPathInput(parsed));
+  const connection = openSqliteConnection(resolveDatabasePath(parsed.databasePath));
+  try {
+    migrateSqliteSchema(connection, releaseSchemaMigrations);
+    const digest = buildLessonMaintenanceDigest(connection, {
+      ...(config.maintenance.staleLessonDays !== null
+        ? { staleAfterDays: config.maintenance.staleLessonDays }
+        : {}),
+      ...(config.maintenance.unusedLessonDays !== null
+        ? { unusedAfterDays: config.maintenance.unusedLessonDays }
+        : {}),
+    });
+
+    console.log("Lesson maintenance digest");
+    console.log(`Generated: ${digest.generatedAt}`);
+    console.log(`Active lessons: ${digest.activeLessonCount}`);
+    console.log(
+      `Thresholds: stale after ${digest.thresholds.staleAfterDays} days; unused after ${digest.thresholds.unusedAfterDays} days`,
+    );
+
+    console.log(`\nStale (${digest.stale.length}):`);
+    for (const lesson of digest.stale) {
+      console.log(
+        `  ${lesson.lessonId} v${lesson.version} ${formatMaintenanceScope(lesson.scope, lesson.projectId)} "${lesson.title}" - updated ${lesson.lastUpdatedAt} (${lesson.ageDays} days ago)`,
+      );
+    }
+
+    console.log(`\nUnused (${digest.unused.length}):`);
+    for (const lesson of digest.unused) {
+      console.log(
+        `  ${lesson.lessonId} v${lesson.version} ${formatMaintenanceScope(lesson.scope, lesson.projectId)} "${lesson.title}" - last retrieval ${lesson.lastRetrievalDay ?? "never"} (${lesson.ageDays} days old)`,
+      );
+    }
+
+    console.log(`\nDuplicates (${digest.duplicates.length}):`);
+    for (const pair of digest.duplicates) {
+      console.log(
+        `  ${pair.lessonIdA} "${pair.titleA}" <-> ${pair.lessonIdB} "${pair.titleB}" (${formatMaintenanceScope(pair.scope, pair.projectId)}, ${Math.round(pair.bodyOverlap * 100)}% body overlap)`,
+      );
+    }
+
+    console.log(`\nPotential conflicts (${digest.potentialConflicts.length}):`);
+    for (const pair of digest.potentialConflicts) {
+      console.log(
+        `  ${pair.lessonIdA} "${pair.titleA}" <-> ${pair.lessonIdB} "${pair.titleB}" (${formatMaintenanceScope(pair.scope, pair.projectId)}, ${Math.round(pair.bodyOverlap * 100)}% body overlap)`,
+      );
+    }
+
+    if (digest.pairwiseScanTruncated) {
+      console.log("\nWarning: pairwise overlap scan was truncated; some duplicate or conflict pairs may be omitted.");
+    }
+  } finally {
+    connection.close();
   }
 }
 
@@ -1203,6 +1266,8 @@ export async function main(
       await runEmbeddingsInstallCommand(parsed);
     } else if (parsed.command === "embeddings-status") {
       runEmbeddingsStatusCommand(parsed);
+    } else if (parsed.command === "maintenance") {
+      runMaintenanceCommand(parsed);
     } else {
       console.error(`Unknown command: ${parsed.command ?? "(none)"}.`);
       return 1;
